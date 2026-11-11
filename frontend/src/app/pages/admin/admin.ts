@@ -1,22 +1,28 @@
-import { afterNextRender, Component, ElementRef, inject, Injector, signal, viewChild } from '@angular/core';
+import { afterNextRender, Component, computed, DestroyRef, ElementRef, inject, Injector, signal, viewChild } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { JsonPipe, DatePipe, NgTemplateOutlet } from '@angular/common';
+import { JsonPipe, NgTemplateOutlet } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
+import { Subscription } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { businessCategories, attentionModes } from '../../models/business-category';
+import { AdminRecord, AdminSectionKey, adminSearchKey, describeAdminRecord } from './admin-record-summary';
 
 interface Field { key: string; label: string; type: 'text' | 'number' | 'time' | 'checkbox' | 'textarea' | 'role' | 'category' | 'mode'; }
-interface Section { key: string; label: string; fields: Field[]; }
-export interface AdminRecord { id: string; [key: string]: unknown; }
+interface Section { key: AdminSectionKey; label: string; fields: Field[]; }
 const field = (key: string, label: string, type: Field['type'] = 'text'): Field => ({ key, label, type });
 
-@Component({ selector: 'app-admin', imports: [FormsModule, JsonPipe, DatePipe, NgTemplateOutlet], templateUrl: './admin.html', styleUrl: './admin.css' })
+@Component({ selector: 'app-admin', imports: [FormsModule, JsonPipe, NgTemplateOutlet], templateUrl: './admin.html', styleUrl: './admin.css' })
 export class Admin {
   readonly categories = businessCategories;
   readonly modes = attentionModes;
   private readonly injector = inject(Injector);
-  private readonly editor = viewChild<ElementRef<HTMLFormElement>>('editor');
+  private readonly editor = viewChild<ElementRef<HTMLElement>>('editor');
+  private readonly sectionTitle = viewChild<ElementRef<HTMLHeadingElement>>('sectionTitle');
+  private readonly destroyRef = inject(DestroyRef);
   private readonly http = inject(HttpClient);
+  private listRequest?: Subscription;
+  private editorTrigger?: HTMLElement;
   private readonly base = `${environment.apiUrl.replace(/\/$/, '')}/api/admin`;
   readonly sections: Section[] = [
     { key: 'users', label: 'Usuarios', fields: [field('name', 'Nombre'), field('role', 'Rol', 'role')] },
@@ -29,12 +35,24 @@ export class Admin {
   ];
   readonly section = signal(this.sections[0]);
   readonly records = signal<AdminRecord[]>([]);
+  readonly search = signal('');
+  readonly rows = computed(() => this.records().map(record => ({
+    record,
+    ...describeAdminRecord(this.section().key, record),
+  })));
+  readonly visibleRows = computed(() => {
+    const query = adminSearchKey(this.search());
+    const rows = this.rows();
+    return query ? rows.filter(row => adminSearchKey([row.title, row.description, row.badge?.label, row.record.id].join(' ')).includes(query)) : rows;
+  });
   readonly page = signal(1);
   readonly hasMore = signal(false);
   readonly loading = signal(false);
   readonly saving = signal(false);
   readonly error = signal('');
+  readonly loadError = signal('');
   readonly message = signal('');
+  readonly expandedId = signal<string | null>(null);
   readonly selected = signal<AdminRecord | null>(null);
   readonly passwordUser = signal<AdminRecord | null>(null);
   newPassword = '';
@@ -42,7 +60,7 @@ export class Admin {
   readonly creating = signal(false);
   readonly deleting = signal<AdminRecord | null>(null);
   readonly warning = signal('');
-  readonly deletionEffects: Record<string, string> = {
+  readonly deletionEffects: Record<AdminSectionKey, string> = {
     users: 'Se eliminarán el usuario, sus negocios con sus servicios y horarios, sus reservas, atenciones e imágenes asociadas. Otros usuarios conservarán sus cuentas. Si vuelve a ingresar con Google, se creará una nueva cuenta de cliente.',
     businesses: 'Se eliminarán el negocio, sus servicios, horarios, reservas, atenciones e imágenes asociadas. El propietario y los clientes conservarán sus cuentas.',
     services: 'Se eliminarán el servicio y todas sus reservas, atenciones e imágenes asociadas, incluyendo el historial.',
@@ -55,27 +73,74 @@ export class Admin {
   constructor() { this.load(); }
 
   change(section: Section): void {
-    if (this.saving()) return;
-    this.closePassword();
-    this.section.set(section); this.page.set(1); this.selected.set(null); this.creating.set(false); this.deleting.set(null); this.message.set(''); this.warning.set(''); this.load();
+    if (this.saving() || section.key === this.section().key) return;
+    this.resetRecordPanels();
+    this.section.set(section);
+    this.page.set(1);
+    this.search.set('');
+    this.message.set('');
+    this.warning.set('');
+    this.load();
+    this.revealSection();
   }
   load(): void {
-    this.loading.set(true); this.error.set(''); this.records.set([]);
-    this.http.get<{ items: AdminRecord[]; hasMore: boolean }>(`${this.base}/${this.section().key}`, { params: { page: this.page() } }).subscribe({
-      next: data => { this.records.set(data.items); this.hasMore.set(data.hasMore); this.loading.set(false); },
-      error: err => { this.loading.set(false); this.error.set(err?.error?.error ?? 'No fue posible cargar los datos.'); }
+    if (this.saving()) return;
+    this.listRequest?.unsubscribe();
+    this.loading.set(true);
+    this.loadError.set('');
+    this.error.set('');
+    this.hasMore.set(false);
+    this.records.set([]);
+    this.listRequest = this.http.get<{ items: AdminRecord[]; hasMore: boolean }>(
+      `${this.base}/${this.section().key}`, { params: { page: this.page() } },
+    ).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: data => {
+        this.records.set(data.items);
+        this.hasMore.set(data.hasMore);
+        this.loading.set(false);
+      },
+      error: err => {
+        this.loadError.set(err?.error?.error ?? 'No fue posible cargar los datos.');
+        this.loading.set(false);
+      },
     });
   }
-  paginate(delta: number): void { this.page.update(value => value + delta); this.load(); }
-  title(record: AdminRecord): string {
-    return String(record['name'] ?? record['email'] ?? this.nested(record, 'client', 'name') ?? record['caption'] ?? record.id);
+  paginate(delta: -1 | 1): void {
+    if (this.loading() || this.saving() || (delta === -1 ? this.page() === 1 : !this.hasMore())) return;
+    this.resetRecordPanels();
+    this.page.update(value => value + delta);
+    this.load();
+    this.revealSection(true);
   }
-  nested(record: AdminRecord, key: string, child: string): string | null {
-    const value = record[key];
-    return value && typeof value === 'object' ? String((value as Record<string, unknown>)[child] ?? '') || null : null;
+
+  private revealSection(focus = false): void {
+    afterNextRender(() => {
+      const title = this.sectionTitle()?.nativeElement;
+      title?.scrollIntoView?.({ block: 'nearest' });
+      if (focus) title?.focus({ preventScroll: true });
+    }, { injector: this.injector });
   }
+
+  private resetRecordPanels(): void {
+    this.expandedId.set(null);
+    this.editorTrigger = undefined;
+    this.close();
+    this.closePassword();
+    this.deleting.set(null);
+  }
+
+  toggleRecord(record: AdminRecord): void {
+    if (this.saving()) return;
+    const open = this.expandedId() !== record.id;
+    this.resetRecordPanels();
+    this.error.set('');
+    if (open) this.expandedId.set(record.id);
+  }
+
+  title(record: AdminRecord): string { return describeAdminRecord(this.section().key, record).title; }
   value(record: AdminRecord, key: string): string { return String(record[key] ?? ''); }
-  edit(record: AdminRecord): void {
+  edit(record: AdminRecord, trigger?: HTMLElement): void {
+    this.expandedId.set(record.id);
     this.closePassword();
     this.deleting.set(null);
     this.selected.set(record); this.creating.set(false); this.error.set(''); this.message.set(''); this.draft = {};
@@ -83,19 +148,40 @@ export class Admin {
       const value = record[item.key];
       this.draft[item.key] = item.type === 'number' ? Number(value) : item.type === 'checkbox' ? Boolean(value) : String(value ?? '');
     }
+    this.revealEditor(trigger);
   }
-  private revealEditor(): void {
+  private revealEditor(trigger?: HTMLElement, selector = 'input, textarea, select'): void {
+    this.editorTrigger = trigger;
     afterNextRender(() => {
       const form = this.editor()?.nativeElement;
-      form?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
-      form?.querySelector<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>('input, textarea, select')?.focus({ preventScroll: true });
+      form?.scrollIntoView?.({ block: 'nearest' });
+      form?.querySelector<HTMLElement>(selector)?.focus({ preventScroll: true });
     }, { injector: this.injector });
   }
-  newUser(): void { this.deleting.set(null); this.selected.set(null); this.creating.set(true); this.draft = { email: '', name: '', role: 'PROFESSIONAL' }; this.error.set(''); this.message.set(''); this.revealEditor(); }
+
+  dismissEditor(): void {
+    this.close();
+    this.closePassword();
+    this.deleting.set(null);
+    this.error.set('');
+    this.editorTrigger?.focus();
+    this.editorTrigger = undefined;
+  }
+
+  newUser(trigger?: HTMLElement): void {
+    this.resetRecordPanels();
+    this.creating.set(true);
+    this.draft = { email: '', name: '', role: 'PROFESSIONAL' };
+    this.error.set('');
+    this.message.set('');
+    this.revealEditor(trigger);
+  }
   closePassword(): void { this.passwordUser.set(null); this.newPassword = ''; this.confirmPassword = ''; }
-  editPassword(record: AdminRecord): void {
+  editPassword(record: AdminRecord, trigger?: HTMLElement): void {
     if (this.saving() || record['role'] === 'SUPERADMIN') return;
+    this.expandedId.set(record.id);
     this.close(); this.deleting.set(null); this.closePassword(); this.passwordUser.set(record); this.error.set(''); this.message.set('');
+    this.revealEditor(trigger);
   }
   savePassword(): void {
     const user = this.passwordUser();
@@ -107,10 +193,12 @@ export class Admin {
       error: err => { this.saving.set(false); this.newPassword = ''; this.confirmPassword = ''; this.error.set(err?.error?.error ?? 'No fue posible cambiar la contraseña.'); }
     });
   }
-  requestDeletion(record: AdminRecord): void {
+  requestDeletion(record: AdminRecord, trigger?: HTMLElement): void {
     if (this.saving() || record['role'] === 'SUPERADMIN') return;
+    this.expandedId.set(record.id);
     this.closePassword();
     this.close(); this.deleting.set(record); this.error.set(''); this.message.set(''); this.warning.set('');
+    this.revealEditor(trigger, '.cancel-deletion');
   }
   confirmDeletion(): void {
     const record = this.deleting();
@@ -118,7 +206,7 @@ export class Admin {
     this.saving.set(true); this.error.set('');
     this.http.delete<{ message: string; warning: string | null }>(`${this.base}/${this.section().key}/${record.id}`, { body: { confirm: true } }).subscribe({
       next: result => {
-        this.saving.set(false); this.deleting.set(null); this.message.set(result.message); this.warning.set(result.warning ?? '');
+        this.saving.set(false); this.resetRecordPanels(); this.message.set(result.message); this.warning.set(result.warning ?? '');
         if (this.records().length === 1 && this.page() > 1) this.page.update(value => value - 1);
         this.load();
       },
