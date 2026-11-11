@@ -1,15 +1,17 @@
+.site-header,
+.site-footer {
+  background: #14171e;
+}
+
 .site-header {
   position: sticky;
   top: 0;
   z-index: 100;
 
-  border-bottom: 1px solid var(--border);
-
-  background:
-    rgba(245, 245, 247, 0.82);
-
-  backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid #303742;
+  color: #fff;
 }
+
 .navigation {
   display: flex;
   align-items: center;
@@ -33,8 +35,10 @@
   text-decoration: none;
 }
 
-.brand img {
+.brand img,
+.footer-brand img {
   object-fit: contain;
+  filter: brightness(0) invert(1);
 }
 
 .nav-links {
@@ -44,28 +48,33 @@
 }
 
 .nav-links > a {
-  color: var(--text-secondary);
-
   font-size: 14px;
   font-weight: 500;
-
   text-decoration: none;
-
-  transition:
-    color 160ms ease;
 }
 
-.nav-links > a:hover {
-  color: var(--text-primary);
+.nav-links > a:not(.login-button):hover,
+.account-name:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
 }
 
 .login-button {
   padding: 9px 16px;
+}
 
+.login-button,
+.logout-button {
+  border: 1px solid #4d5c71;
   border-radius: 999px;
+  background: #253244;
+  color: inherit;
+  transition: background 160ms ease, transform 160ms ease;
+}
 
-  background: var(--text-primary);
-  color: white !important;
+.login-button:hover,
+.logout-button:hover {
+  background: #354862;
 }
 
 .account {
@@ -81,7 +90,6 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 
-  color: var(--text-secondary);
   display: inline-block;
   padding: 8px 0;
   text-decoration: none;
@@ -89,28 +97,9 @@
   font-size: 13px;
 }
 
-.account-name:hover { color: var(--text-primary); text-decoration: underline; }
-.account-name:focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; border-radius: 4px; }
-
 .logout-button {
   padding: 8px 13px;
-
-  border: 1px solid var(--border);
-  border-radius: 999px;
-
-  background: var(--surface);
-
-  color: var(--text-primary);
-
   cursor: pointer;
-
-  transition:
-    background 160ms ease,
-    transform 160ms ease;
-}
-
-.logout-button:hover {
-  background: #eeeeef;
 }
 
 .logout-button:active {
@@ -149,7 +138,6 @@
   --footer-line: #303742;
 
   padding: clamp(24px, 5vw, 60px) 24px 20px;
-  background: #14171e;
   color: #f5f7fc;
 }
 
@@ -235,11 +223,6 @@
   text-decoration: none;
 }
 
-.footer-brand img {
-  object-fit: contain;
-  filter: grayscale(1) brightness(0) invert(1);
-}
-
 .footer-group h2 {
   margin: 0 0 8px;
   color: #f5f7fc;
@@ -269,6 +252,7 @@
   text-underline-offset: 4px;
 }
 
+.site-header :is(a, button):focus-visible,
 .site-footer a:focus-visible {
   outline: 2px solid #b9d7ff;
   outline-offset: 4px;

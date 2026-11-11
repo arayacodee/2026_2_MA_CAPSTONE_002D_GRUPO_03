@@ -66,6 +66,79 @@
     </div>
   </section>
 
+  <section id="como-reservar" class="experience-previews client-experience" aria-labelledby="booking-experience-title">
+    <div class="section-header preview-intro">
+      <p class="eyebrow">PARA CLIENTES</p>
+      <h2 id="booking-experience-title">Reserva en 3 simples pasos.</h2>
+    </div>
+
+    <div class="booking-guide">
+      <ol class="booking-steps" role="list">
+        @for (step of bookingSteps; track step.title; let index = $index) {
+          <li [class.active]="index === demo.step()">
+            <span class="booking-step-number" aria-hidden="true">{{ index + 1 }}</span>
+            <div>
+              <h3>{{ step.title }}</h3>
+              <p>{{ step.description }}</p>
+            </div>
+          </li>
+        }
+      </ol>
+
+      <div class="booking-demo" appAutoplayPreview #demo="autoplayPreview" aria-hidden="true">
+        <div class="mock-window booking-window">
+          <div class="mock-window-bar">
+            <span></span><span></span><span></span>
+            <small>Vista previa · Estudio Norte</small>
+          </div>
+
+          <div class="booking-progress">
+            @for (label of ['Servicio', 'Horario', 'Confirmación']; track label; let index = $index) {
+              <span [class.active]="index === demo.step()">{{ label }}</span>
+            }
+          </div>
+
+          <div class="preview-track" [style.--preview-offset]="-100 * demo.step() + '%'">
+            <div class="booking-scene">
+              <strong class="booking-scene-title">Servicios disponibles</strong>
+              <div class="mock-service-row booking-chosen">
+                <span class="mock-service-icon">✦</span>
+                <span><strong>Sesión de bienestar</strong><small>60 minutos</small></span>
+                <b>$25.000</b>
+              </div>
+              <div class="mock-service-row">
+                <span class="mock-service-icon">◷</span>
+                <span><strong>Consulta inicial</strong><small>30 minutos</small></span>
+                <b>$15.000</b>
+              </div>
+            </div>
+
+            <div class="booking-scene">
+              <strong class="booking-scene-title">Horarios disponibles</strong>
+              <div class="booking-date">
+                <strong>Viernes</strong>
+                <small>Sesión de bienestar · 60 min</small>
+              </div>
+              <div class="booking-slots">
+                <span>09:00</span>
+                <span class="booking-chosen">10:30</span>
+                <span>12:00</span>
+                <span>15:30</span>
+              </div>
+            </div>
+
+            <div class="booking-scene booking-success">
+              <span class="booking-check">✓</span>
+              <strong class="booking-scene-title">Reserva confirmada</strong>
+              <p>Sesión de bienestar</p>
+              <small>Viernes · 10:30 · Estudio Norte</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section class="experience-previews" aria-labelledby="experience-title">
     <div class="section-header preview-intro" >
       <p class="eyebrow">ASÍ SOLUCIONA CRONOS</p>
@@ -178,79 +251,6 @@
           </div>
         </div>
       </article>
-    </div>
-  </section>
-
-  <section id="como-reservar" class="experience-previews client-experience" aria-labelledby="booking-experience-title">
-    <div class="section-header preview-intro">
-      <p class="eyebrow">PARA CLIENTES</p>
-      <h2 id="booking-experience-title">Reserva en 3 simples pasos.</h2>
-    </div>
-
-    <div class="booking-guide">
-      <ol class="booking-steps" role="list">
-        @for (step of bookingSteps; track step.title; let index = $index) {
-          <li [class.active]="index === demo.step()">
-            <span class="booking-step-number" aria-hidden="true">{{ index + 1 }}</span>
-            <div>
-              <h3>{{ step.title }}</h3>
-              <p>{{ step.description }}</p>
-            </div>
-          </li>
-        }
-      </ol>
-
-      <div class="booking-demo" appAutoplayPreview #demo="autoplayPreview" aria-hidden="true">
-        <div class="mock-window booking-window">
-          <div class="mock-window-bar">
-            <span></span><span></span><span></span>
-            <small>Vista previa · Estudio Norte</small>
-          </div>
-
-          <div class="booking-progress">
-            @for (label of ['Servicio', 'Horario', 'Confirmación']; track label; let index = $index) {
-              <span [class.active]="index === demo.step()">{{ label }}</span>
-            }
-          </div>
-
-          <div class="preview-track" [style.--preview-offset]="-100 * demo.step() + '%'">
-            <div class="booking-scene">
-              <strong class="booking-scene-title">Servicios disponibles</strong>
-              <div class="mock-service-row booking-chosen">
-                <span class="mock-service-icon">✦</span>
-                <span><strong>Sesión de bienestar</strong><small>60 minutos</small></span>
-                <b>$25.000</b>
-              </div>
-              <div class="mock-service-row">
-                <span class="mock-service-icon">◷</span>
-                <span><strong>Consulta inicial</strong><small>30 minutos</small></span>
-                <b>$15.000</b>
-              </div>
-            </div>
-
-            <div class="booking-scene">
-              <strong class="booking-scene-title">Horarios disponibles</strong>
-              <div class="booking-date">
-                <strong>Viernes</strong>
-                <small>Sesión de bienestar · 60 min</small>
-              </div>
-              <div class="booking-slots">
-                <span>09:00</span>
-                <span class="booking-chosen">10:30</span>
-                <span>12:00</span>
-                <span>15:30</span>
-              </div>
-            </div>
-
-            <div class="booking-scene booking-success">
-              <span class="booking-check">✓</span>
-              <strong class="booking-scene-title">Reserva confirmada</strong>
-              <p>Sesión de bienestar</p>
-              <small>Viernes · 10:30 · Estudio Norte</small>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   </section>
 

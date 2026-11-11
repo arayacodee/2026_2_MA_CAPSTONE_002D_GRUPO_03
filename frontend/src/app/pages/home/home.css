@@ -355,7 +355,7 @@
 .experience-previews {
   max-width: var(--page-width);
   margin: 0 auto;
-  padding: 20px 24px 112px;
+  padding-inline: 24px;
 }
 
 .preview-intro {
@@ -696,11 +696,6 @@
 @media (max-width: 760px) {
   .professionals {
     padding-top: 80px;
-  }
-
-  .experience-previews:not(.client-experience) {
-    padding-top: 0;
-    padding-bottom: 80px;
   }
 
   .preview-grid {

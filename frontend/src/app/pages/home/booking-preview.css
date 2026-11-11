@@ -171,7 +171,7 @@
 }
 
 .client-experience {
-  padding-block: 0;
+  padding-bottom: clamp(72px, 8vw, 112px);
   scroll-margin-top: 110px;
 }
 
