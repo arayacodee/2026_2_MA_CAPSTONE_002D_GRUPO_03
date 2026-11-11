@@ -30,36 +30,48 @@
         Explorar profesionales
       </a>
 
-      <div class="hero-showcase" appAutoplayPreview #showcase="autoplayPreview" aria-hidden="true">
-        <div class="showcase-window">
-          <div class="preview-track" [style.--preview-offset]="-100 * showcase.step() + '%'">
-            <div class="showcase-slide showcase-services">
-              <strong>Explora servicios.</strong>
-              <div class="showcase-sample">
-                <span class="mock-service-icon">✦</span>
-                <div><strong>Sesión de bienestar</strong><small>Estudio Norte · 60 min</small></div>
-              </div>
-            </div>
-            <div class="showcase-slide showcase-times">
-              <strong>Reserva en minutos.</strong>
-              <div class="showcase-sample showcase-time-sample">
-                <div><strong>Horarios disponibles</strong></div>
-                <div class="sample-slots"><span>09:00</span><span>10:30</span><span>12:00</span></div>
-              </div>
-            </div>
-            <div class="showcase-slide showcase-agenda">
-              <strong>Ten tu agenda a mano.</strong>
-              <div class="showcase-sample">
-                <span class="mock-service-icon">✓</span>
-                <div><strong>Próxima reserva</strong><small>Viernes · 10:30</small></div>
-              </div>
-            </div>
+      <div class="hero-showcase">
+        <div class="showcase-window" aria-hidden="true">
+          <div class="preview-track showcase-track">
+            @for (slide of ['services', 'times', 'agenda', 'services']; track $index) {
+              @switch (slide) {
+                @case ('services') {
+                  <div class="showcase-slide showcase-services">
+                    <strong>Explora servicios.</strong>
+                    <div class="showcase-sample">
+                      <span class="mock-service-icon">✦</span>
+                      <div><strong>Sesión de bienestar</strong><small>Estudio Norte · 60 min</small></div>
+                    </div>
+                  </div>
+                }
+                @case ('times') {
+                  <div class="showcase-slide showcase-times">
+                    <strong>Reserva en minutos.</strong>
+                    <div class="showcase-sample showcase-time-sample">
+                      <div><strong>Horarios disponibles</strong></div>
+                      <div class="sample-slots"><span>09:00</span><span>10:30</span><span>12:00</span></div>
+                    </div>
+                  </div>
+                }
+                @case ('agenda') {
+                  <div class="showcase-slide showcase-agenda">
+                    <strong>Ten tu agenda a mano.</strong>
+                    <div class="showcase-sample">
+                      <span class="mock-service-icon">✓</span>
+                      <div><strong>Próxima reserva</strong><small>Viernes · 10:30</small></div>
+                    </div>
+                  </div>
+                }
+              }
+            }
           </div>
         </div>
-        <div class="showcase-indicators">
-          @for (index of [0, 1, 2]; track index) {
-            <span [class.active]="index === showcase.step()"></span>
-          }
+        <div class="showcase-controls">
+          <div class="showcase-indicators" aria-hidden="true"><span></span><span></span><span></span></div>
+          <label class="showcase-pause">
+            <input type="checkbox" />
+            Pausar carrusel
+          </label>
         </div>
       </div>
 
