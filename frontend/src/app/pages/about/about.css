@@ -81,6 +81,7 @@
 
 .about-section,
 .contact-section {
+  scroll-margin-top: 110px;
   display: grid;
   grid-template-columns: minmax(0, 0.9fr) minmax(280px, 0.7fr);
   gap: 64px;

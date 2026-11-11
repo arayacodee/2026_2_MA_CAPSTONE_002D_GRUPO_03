@@ -34,9 +34,6 @@
 }
 
 .brand img {
-  display: block;
-  width: 100%;
-  height: 100%;
   object-fit: contain;
 }
 
@@ -239,8 +236,6 @@
 }
 
 .footer-brand img {
-  width: 100%;
-  height: 100%;
   object-fit: contain;
   filter: grayscale(1) brightness(0) invert(1);
 }

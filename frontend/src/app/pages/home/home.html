@@ -6,8 +6,9 @@
       <div class="hero-brand">
         <img
           class="hero-logo"
-          src="cronos-logo.png"
+          ngSrc="cronos-logo.png"
           alt="Cronos"
+          fill
         />
       </div>
 
@@ -22,18 +23,45 @@
         desde un solo lugar.
       </p>
 
-      <div class="hero-highlights" aria-label="Funciones de Cronos">
-        <span>Explora servicios</span>
-        <span>Reserva en minutos</span>
-        <span>Gestiona con claridad</span>
-      </div>
-
       <a
         href="#professionals"
         class="hero-button"
       >
         Explorar profesionales
       </a>
+
+      <div class="hero-showcase" appAutoplayPreview #showcase="autoplayPreview" aria-hidden="true">
+        <div class="showcase-window">
+          <div class="preview-track" [style.--preview-offset]="-100 * showcase.step() + '%'">
+            <div class="showcase-slide showcase-services">
+              <strong>Explora servicios.</strong>
+              <div class="showcase-sample">
+                <span class="mock-service-icon">✦</span>
+                <div><strong>Sesión de bienestar</strong><small>Estudio Norte · 60 min</small></div>
+              </div>
+            </div>
+            <div class="showcase-slide showcase-times">
+              <strong>Reserva en minutos.</strong>
+              <div class="showcase-sample showcase-time-sample">
+                <div><strong>Horarios disponibles</strong></div>
+                <div class="sample-slots"><span>09:00</span><span>10:30</span><span>12:00</span></div>
+              </div>
+            </div>
+            <div class="showcase-slide showcase-agenda">
+              <strong>Ten tu agenda a mano.</strong>
+              <div class="showcase-sample">
+                <span class="mock-service-icon">✓</span>
+                <div><strong>Próxima reserva</strong><small>Viernes · 10:30</small></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="showcase-indicators">
+          @for (index of [0, 1, 2]; track index) {
+            <span [class.active]="index === showcase.step()"></span>
+          }
+        </div>
+      </div>
 
     </div>
   </section>
@@ -50,19 +78,17 @@
     </div>
 
     <div class="preview-grid">
-      <article class="preview-card professional-preview">
+      <article class="preview-card">
         <div class="preview-copy">
-          <span class="preview-number">01</span>
           <h3>El profesional organiza su espacio.</h3>
-          <p>
-            • Personaliza su perfil<br>
-            • Publica sus servicios<br>
-            • Deja disponibles sus horarios.
-          </p>
-          <br>
+          <ul>
+            <li>Personaliza su perfil</li>
+            <li>Publica sus servicios</li>
+            <li>Define los horarios disponibles</li>
+          </ul>
         </div>
 
-        <div class="mock-window professional-window" aria-label="Vista previa del perfil de un profesional">
+        <div class="mock-window professional-window" aria-hidden="true">
           <div class="mock-window-bar">
             <span></span><span></span><span></span>
             <small>cronos.app / estudio-norte</small>
@@ -102,18 +128,17 @@
         </div>
       </article>
 
-      <article class="preview-card dashboard-preview">
+      <article class="preview-card">
         <div class="preview-copy">
-          <span class="preview-number">02</span>
           <h3>Todo bajo tu control.</h3>
-          <p>
-            • Ordena tus reservas<br>
-            • Gestiona tus servicios<br>
-            • Revisa tu agenda
-          </p>
+          <ul>
+            <li>Ordena tus reservas</li>
+            <li>Gestiona tus servicios</li>
+            <li>Revisa tu agenda</li>
+          </ul>
         </div>
 
-        <div class="mock-window dashboard-window" aria-label="Vista previa del dashboard profesional">
+        <div class="mock-window dashboard-window" aria-hidden="true">
           <div class="mock-window-bar">
             <span></span><span></span><span></span>
             <small>cronos.app / dashboard</small>
@@ -159,110 +184,73 @@
   <section id="como-reservar" class="experience-previews client-experience" aria-labelledby="booking-experience-title">
     <div class="section-header preview-intro">
       <p class="eyebrow">PARA CLIENTES</p>
-      <h2 id="booking-experience-title">
-        Sistema que reserva en 3 simples pasos.
-      </h2>
-      <p>
-        Encuentra una hora disponible y confirma tu reserva sin complicaciones.
-      </p>
+      <h2 id="booking-experience-title">Reserva en 3 simples pasos.</h2>
     </div>
 
-    <div class="preview-grid">
-      <article class="preview-card client-preview">
-        <div class="preview-copy">
-          <span class="preview-number">01</span>
-          <h3>El cliente reserva sin perderse.</h3>
-          <p>
-            • Elige un servicio<br>
-            • Encuentra un horario.<br>
-            • Confirma su reserva.
-          </p>
-          <br>
-        </div>
+    <div class="booking-guide">
+      <ol class="booking-steps" role="list">
+        @for (step of bookingSteps; track step.title; let index = $index) {
+          <li [class.active]="index === demo.step()">
+            <span class="booking-step-number" aria-hidden="true">{{ index + 1 }}</span>
+            <div>
+              <h3>{{ step.title }}</h3>
+              <p>{{ step.description }}</p>
+            </div>
+          </li>
+        }
+      </ol>
 
-        <div class="mock-window booking-window" aria-label="Vista previa del flujo de reserva de un cliente">
+      <div class="booking-demo" appAutoplayPreview #demo="autoplayPreview" aria-hidden="true">
+        <div class="mock-window booking-window">
           <div class="mock-window-bar">
             <span></span><span></span><span></span>
-            <small>Reservar servicio</small>
+            <small>Vista previa · Estudio Norte</small>
           </div>
 
-          <div class="booking-body">
-            <div class="booking-progress" aria-hidden="true">
-              <span class="active"><b>1</b><em>Servicio</em></span>
-              <i></i>
-              <span class="active"><b>2</b><em>Horario</em></span>
-              <i></i>
-              <span><b>3</b><em>Confirmar</em></span>
+          <div class="booking-progress">
+            @for (label of ['Servicio', 'Horario', 'Confirmación']; track label; let index = $index) {
+              <span [class.active]="index === demo.step()">{{ label }}</span>
+            }
+          </div>
+
+          <div class="preview-track" [style.--preview-offset]="-100 * demo.step() + '%'">
+            <div class="booking-scene">
+              <strong class="booking-scene-title">Servicios disponibles</strong>
+              <div class="mock-service-row booking-chosen">
+                <span class="mock-service-icon">✦</span>
+                <span><strong>Sesión de bienestar</strong><small>60 minutos</small></span>
+                <b>$25.000</b>
+              </div>
+              <div class="mock-service-row">
+                <span class="mock-service-icon">◷</span>
+                <span><strong>Consulta inicial</strong><small>30 minutos</small></span>
+                <b>$15.000</b>
+              </div>
             </div>
 
-            <div class="booking-selection">
-              <div class="booking-title">
-                <span>Estudio Norte</span>
-                <strong>Elige un horario</strong>
+            <div class="booking-scene">
+              <strong class="booking-scene-title">Horarios disponibles</strong>
+              <div class="booking-date">
+                <strong>Viernes</strong>
+                <small>Sesión de bienestar · 60 min</small>
               </div>
-
-              <div class="booking-service-selected">
-                <span class="mock-service-icon">✦</span>
-                <span><strong>Sesión de bienestar</strong><small>60 minutos · $25.000</small></span>
-                <span class="edit-selection">Editar</span>
-              </div>
-
-              <div class="booking-date-row">
-                <span class="booking-arrow" aria-hidden="true">‹</span>
-                <strong>Viernes, 18 de octubre</strong>
-                <span class="booking-arrow" aria-hidden="true">›</span>
-              </div>
-
               <div class="booking-slots">
                 <span>09:00</span>
-                <span class="selected-slot">10:30</span>
+                <span class="booking-chosen">10:30</span>
                 <span>12:00</span>
                 <span>15:30</span>
               </div>
+            </div>
 
-              <div class="booking-confirmation">
-                <span><small>Tu horario seleccionado</small><strong>Viernes, 18 de octubre · 10:30</strong></span>
-                <span class="booking-confirm-button">Confirmar reserva</span>
-              </div>
+            <div class="booking-scene booking-success">
+              <span class="booking-check">✓</span>
+              <strong class="booking-scene-title">Reserva confirmada</strong>
+              <p>Sesión de bienestar</p>
+              <small>Viernes · 10:30 · Estudio Norte</small>
             </div>
           </div>
         </div>
-      </article>
-
-      <article class="preview-card business-preview">
-        <div class="preview-copy">
-          <span class="preview-number">02</span>
-          <h3>Conoce el negocio antes de reservar.</h3>
-          <p>
-            • Revisa su presentación<br>
-            • Explora sus servicios<br>
-            • Elige lo que necesitas
-          </p>
-          <br>
-        </div>
-
-        <div class="mock-window business-window" aria-label="Vista previa de un negocio personalizado">
-          <div class="mock-window-bar">
-            <span></span><span></span><span></span>
-            <small>cronos.app / estudio-norte</small>
-          </div>
-
-          <div class="business-mock-cover">
-            <div class="business-mock-avatar">EN</div>
-          </div>
-
-          <div class="business-mock-body">
-            <span class="mock-status">Disponible para reservas</span>
-            <strong>Estudio Norte</strong>
-            <p>Bienestar y cuidado personal en un espacio pensado para ti.</p>
-
-            <div class="business-mock-actions">
-              <span>Ver servicios</span>
-              <span>Conocer el espacio</span>
-            </div>
-          </div>
-        </div>
-      </article>
+      </div>
     </div>
   </section>
 

@@ -2,7 +2,6 @@ import { Routes } from '@angular/router';
 import { superadminGuard } from './core/guards/superadmin.guard';
 import { accountGuard } from './core/guards/account.guard';
 import { Home } from './pages/home/home';
-import { About } from './pages/about/about';
 import { Booking } from './pages/booking/booking';
 import { ProfessionalDashboard } from './pages/professional-dashboard/professional-dashboard';
 import { MyReservations } from './pages/my-reservations/my-reservations';
@@ -26,7 +25,7 @@ export const routes: Routes = [
   },
   {
     path: 'about',
-    component: About
+    loadComponent: () => import('./pages/about/about').then(module => module.About)
   },
   {
     path: 'business/:id',
