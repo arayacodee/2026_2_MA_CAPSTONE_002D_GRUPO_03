@@ -1,4 +1,5 @@
 import { Component } from '@angular/core';
+import { NgOptimizedImage } from '@angular/common';
 import {
   Router,
   RouterLink,
@@ -11,7 +12,8 @@ import { AuthService } from './core/services/auth.service';
   selector: 'app-root',
   imports: [
     RouterOutlet,
-    RouterLink
+    RouterLink,
+    NgOptimizedImage
   ],
   templateUrl: './app.html',
   styleUrl: './app.css'

@@ -131,6 +131,7 @@
 }
 
 .professionals {
+  scroll-margin-top: 110px;
   max-width: var(--page-width);
   margin: 0 auto;
 
@@ -798,6 +799,7 @@
 
 .client-experience {
   padding-top: 0;
+  scroll-margin-top: 110px;
 }
 
 .view-profile {
