@@ -4,9 +4,14 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { cloudinary } from "../lib/cloudinary.js";
 import { uploadImageBuffer } from "../lib/cloudinary-upload.js";
-import { attentionMetrics, monthEnvelope } from "../lib/attention-metrics.js";
+import { attentionMetrics, localDay, monthEnvelope } from "../lib/attention-metrics.js";
 
-const querySchema = z.object({ clientId: z.string().uuid().optional(), cursor: z.string().uuid().optional(), limit: z.coerce.number().int().min(1).max(50).default(50) });
+const monthQuerySchema = z.object({ month: z.string().regex(/^[1-9]\d{3}-(0[1-9]|1[0-2])$/).optional() });
+const querySchema = monthQuerySchema.extend({
+  clientId: z.string().uuid().optional(),
+  cursor: z.string().uuid().optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(50),
+});
 const notesSchema = z.object({ notes: z.string().trim().max(1500).nullable() });
 const captionSchema = z.object({ caption: z.string().trim().max(300).optional() });
 const idSchema = z.string().uuid();
@@ -14,33 +19,52 @@ const idSchema = z.string().uuid();
 export async function getSessions(req: Request, res: Response) {
   const parsed = querySchema.safeParse(req.query);
   if (!parsed.success) return res.status(400).json({ error: "Filtros de historial inválidos." });
-  const sessions = await prisma.clientSession.findMany({
-    where: { business: { ownerId: req.authUser!.id }, clientId: parsed.data.clientId },
-    include: {
-      client: { select: { id: true, name: true, email: true } },
-      business: { select: { id: true, name: true, timezone: true } },
-      reservation: { include: { service: true } },
-      evidences: { orderBy: { createdAt: "desc" } },
-    },
-    orderBy: [{ occurredAt: "desc" }, { id: "desc" }],
-    take: parsed.data.limit + 1,
-    ...(parsed.data.cursor ? { cursor: { id: parsed.data.cursor }, skip: 1 } : {}),
-  });
-  const hasMore = sessions.length > parsed.data.limit;
-  const items = sessions.slice(0, parsed.data.limit);
-  return res.json({ items, nextCursor: hasMore ? items.at(-1)!.id : null });
+  const { clientId, limit, month } = parsed.data;
+  const period = month ? monthEnvelope(month) : undefined;
+  let cursor = parsed.data.cursor;
+  const matches = [];
+
+  // Fill the page even when the UTC window includes records from neighboring local months.
+  do {
+    const sessions = await prisma.clientSession.findMany({
+      where: {
+        business: { ownerId: req.authUser!.id },
+        clientId,
+        ...(period ? { occurredAt: { gte: period.from, lt: period.until } } : {}),
+      },
+      include: {
+        client: { select: { id: true, name: true, email: true } },
+        business: { select: { id: true, name: true, timezone: true } },
+        reservation: { include: { service: true } },
+        evidences: { orderBy: { createdAt: "desc" } },
+      },
+      orderBy: [{ occurredAt: "desc" }, { id: "desc" }],
+      take: limit + 1,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+    });
+    matches.push(...(month
+      ? sessions.filter(session => localDay(session.occurredAt, session.business.timezone).slice(0, 7) === month)
+      : sessions));
+    cursor = sessions.length > limit ? sessions.at(-1)?.id : undefined;
+  } while (cursor && matches.length <= limit);
+
+  const items = matches.slice(0, limit);
+  return res.json({ items, nextCursor: matches.length > limit ? items.at(-1)!.id : null });
 }
 
 export async function getAttentionMetrics(req: Request, res: Response) {
+  const parsed = monthQuerySchema.safeParse(req.query);
+  if (!parsed.success) return res.status(400).json({ error: "Mes inválido." });
   const business = await prisma.business.findFirst({ where: { ownerId: req.authUser!.id }, select: { id: true, timezone: true } });
   if (!business) return res.status(404).json({ error: "Negocio no encontrado." });
   const now = new Date();
-  const period = monthEnvelope(now, business.timezone);
+  const month = parsed.data.month ?? localDay(now, business.timezone).slice(0, 7);
+  const period = monthEnvelope(month);
   const sessions = await prisma.clientSession.findMany({
     where: { businessId: business.id, occurredAt: { gte: period.from, lt: period.until }, reservation: { status: "COMPLETED" } },
     select: { occurredAt: true, clientId: true, amount: true },
   });
-  return res.json(attentionMetrics(sessions, now, business.timezone));
+  return res.json(attentionMetrics(sessions, now, business.timezone, month));
 }
 
 export async function updateSession(req: Request<{ id: string }>, res: Response) {

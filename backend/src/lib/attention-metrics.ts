@@ -8,13 +8,12 @@ export function localDay(date: Date, timezone: string): string {
 
 // A UTC envelope includes both local month boundaries, including DST changes.
 // The exact business calendar day is checked below, independently of server TZ.
-export function monthEnvelope(now: Date, timezone: string) {
-  const today = localDay(now, timezone);
-  const [year, month] = today.split('-').map(Number);
+export function monthEnvelope(month: string) {
+  const [year, monthNumber] = month.split('-').map(Number);
   return {
-    today, month: today.slice(0, 7), year, monthNumber: month,
-    from: new Date(Date.UTC(year, month - 1, -1)),
-    until: new Date(Date.UTC(year, month, 3)),
+    year, monthNumber,
+    from: new Date(Date.UTC(year, monthNumber - 1, -1)),
+    until: new Date(Date.UTC(year, monthNumber, 3)),
   };
 }
 
@@ -24,24 +23,26 @@ interface MetricSession {
   amount: { toString(): string } | null;
 }
 
-export function attentionMetrics(sessions: MetricSession[], now: Date, timezone: string) {
-  const period = monthEnvelope(now, timezone);
+export function attentionMetrics(sessions: MetricSession[], now: Date, timezone: string, selectedMonth?: string) {
+  const today = localDay(now, timezone);
+  const month = selectedMonth ?? today.slice(0, 7);
+  const period = monthEnvelope(month);
   const days = new Date(Date.UTC(period.year, period.monthNumber, 0)).getUTCDate();
   const daily = Array.from({ length: days }, (_, index) => ({
-    date: `${period.month}-${String(index + 1).padStart(2, '0')}`, count: 0,
+    date: `${month}-${String(index + 1).padStart(2, '0')}`, count: 0,
   }));
   const clients = new Set<string>();
   let monthCount = 0, todayCount = 0, revenueCents = 0, missingAmountCount = 0;
   for (const session of sessions) {
     const day = localDay(session.occurredAt, timezone);
-    if (!day.startsWith(`${period.month}-`) || session.occurredAt > now) continue;
+    if (day.slice(0, 7) !== month || session.occurredAt > now) continue;
     monthCount++;
-    if (day === period.today) todayCount++;
+    if (day === today) todayCount++;
     daily[Number(day.slice(-2)) - 1].count++;
     clients.add(session.clientId);
     if (session.amount == null) missingAmountCount++;
     else revenueCents += Math.round(Number(session.amount.toString()) * 100);
   }
-  return { month: period.month, timezone, todayCount, monthCount,
+  return { month, timezone, todayCount, monthCount,
     uniqueClients: clients.size, revenue: revenueCents / 100, missingAmountCount, daily };
 }

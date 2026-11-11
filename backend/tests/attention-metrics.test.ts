@@ -74,7 +74,7 @@ test('la ventana UTC cubre los extremos del mes y el cambio de horario de verano
   assert.equal(localDay(new Date('2026-09-06T03:59:59Z'), timezone), '2026-09-05');
   assert.equal(localDay(new Date('2026-09-06T04:00:00Z'), timezone), '2026-09-06');
   const now = new Date('2026-09-30T23:00:00Z');
-  const envelope = monthEnvelope(now, timezone);
+  const envelope = monthEnvelope('2026-09');
   for (const date of ['2026-09-01T04:00:00Z', '2026-10-01T02:59:59Z']) {
     assert.ok(new Date(date) >= envelope.from && new Date(date) < envelope.until);
   }

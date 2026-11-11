@@ -69,7 +69,7 @@ test('métricas filtran propietario, periodo acotado y solo reservas completadas
   prisma.clientSession.findMany = (async (args: any) => { query = args; return []; }) as any;
   try {
     const res = response();
-    await getAttentionMetrics({ authUser: { id: 'owner' } } as any, res as any);
+    await getAttentionMetrics({ authUser: { id: 'owner' }, query: { month: '2024-02' } } as any, res as any);
     assert.equal(lookup.where.ownerId, 'owner');
     assert.equal(query.where.businessId, 'own-business');
     assert.equal(query.where.reservation.status, 'COMPLETED');
@@ -78,11 +78,52 @@ test('métricas filtran propietario, periodo acotado y solo reservas completadas
     assert.ok(query.where.occurredAt.gte instanceof Date);
     assert.ok(query.where.occurredAt.lt - query.where.occurredAt.gte < 36 * 86400000);
     assert.equal(res.body.monthCount, 0);
+    assert.equal(res.body.month, '2024-02');
+    assert.equal(res.body.daily.length, 29);
     prisma.business.findFirst = (async () => null) as any;
     const missing = response();
-    await getAttentionMetrics({ authUser: { id: 'owner' } } as any, missing as any);
+    await getAttentionMetrics({ authUser: { id: 'owner' }, query: {} } as any, missing as any);
     assert.equal(missing.statusCode, 404);
   } finally { prisma.business.findFirst = originals.business; prisma.clientSession.findMany = originals.sessions; }
+});
+
+test('el filtro mensual pagina por fecha local sin perder registros en los límites', async () => {
+  const original = prisma.clientSession.findMany;
+  const business = { timezone: 'America/Santiago' };
+  const dates = [
+    '2026-11-01T03:00:00Z', '2026-11-01T02:59:59Z', '2026-10-20T15:00:00Z',
+    '2026-10-01T03:00:00Z', '2026-10-01T02:59:59Z',
+  ];
+  const rows = dates.map((date, index) => ({
+    id: `00000000-0000-4000-8000-00000000000${index}`,
+    business,
+    occurredAt: new Date(date),
+  }));
+  prisma.clientSession.findMany = (async (args: any) => {
+    assert.equal(args.where.business.ownerId, 'owner');
+    assert.ok(args.where.occurredAt.gte instanceof Date);
+    const start = args.cursor ? rows.findIndex(row => row.id === args.cursor.id) + args.skip : 0;
+    return rows.slice(start, start + args.take);
+  }) as any;
+  try {
+    const query = { month: '2026-10', limit: '2' };
+    const first = response();
+    await getSessions({ authUser: { id: 'owner' }, query } as any, first as any);
+    assert.deepEqual(first.body, { items: rows.slice(1, 3), nextCursor: rows[2].id });
+    const second = response();
+    await getSessions({ authUser: { id: 'owner' }, query: { ...query, cursor: first.body.nextCursor } } as any, second as any);
+    assert.deepEqual(second.body, { items: [rows[3]], nextCursor: null });
+  } finally { prisma.clientSession.findMany = original; }
+});
+
+test('el historial y las métricas rechazan meses inválidos', async () => {
+  for (const handler of [getSessions, getAttentionMetrics]) {
+    for (const month of ['2026-00', '2026-13', '2026-2', ['2026-10', '2026-11']]) {
+      const res = response();
+      await handler({ query: { month } } as any, res as any);
+      assert.equal(res.statusCode, 400);
+    }
+  }
 });
 
 test('una nota no puede editar una atención ajena', async () => {
