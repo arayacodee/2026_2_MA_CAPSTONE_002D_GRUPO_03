@@ -1,5 +1,6 @@
 <main class="login-page"><section class="login-card">
 <h1>{{ companyRegistration ? 'Tu cuenta para registrar tu empresa' : 'Bienvenido a Cronos' }}</h1><p>{{ companyRegistration ? 'Al completar este paso continuarás con los datos de tu empresa.' : '¿Quieres iniciar sesión o crear una cuenta?' }}</p>
+<a class="admin-access" routerLink="/admin/login">Ingresar como Superadmin</a>
 <section class="google-section" aria-label="Acceso con Google">
   <p class="google-label">Continúa con tu cuenta Google</p>
   <div #googleButton id="google-signin-button"></div>
@@ -27,5 +28,4 @@
 }
 @if (errorMessage()) { <p class="error" role="alert">{{ errorMessage() }}</p> }
 @if (!companyRegistration) { <section class="company-invitation"><h2>¿Quieres que tu empresa sea parte de Cronos?</h2><p>Plan profesional por $7.900 CLP al mes.</p><a routerLink="/companies">Conocer el plan y registrar mi empresa →</a></section> }
-<p class="account-note"><a routerLink="/admin/login">Acceso de administración</a></p>
 </section></main>
