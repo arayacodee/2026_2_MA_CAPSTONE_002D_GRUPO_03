@@ -175,6 +175,77 @@ button.primary:not(:disabled):hover {
   gap: 12px 16px;
 }
 
+.business-instruction {
+  margin: 0;
+  color: var(--admin-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.business-groups {
+  display: grid;
+  gap: 12px;
+  padding: 0 clamp(14px, 3vw, 26px) 20px;
+}
+
+.business-group {
+  min-width: 0;
+  border: 1px solid var(--admin-line);
+  border-radius: 14px;
+}
+
+.business-toggle {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 160px) 10px;
+  grid-template-areas: 'mark identity category chevron';
+  gap: 8px 12px;
+  width: 100%;
+  min-height: 65px;
+  padding: 12px 15px;
+  border: 0;
+  border-radius: 13px;
+  text-align: left;
+}
+
+.business-toggle[aria-expanded='true'] {
+  border-radius: 13px 13px 0 0;
+  background: var(--admin-selected);
+}
+
+.business-toggle .record-mark { grid-area: mark; }
+.business-toggle .record-chevron { grid-area: chevron; }
+.business-toggle .business-category { grid-area: category; margin: 0; }
+
+.business-identity {
+  grid-area: identity;
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 15px;
+}
+
+.business-identity small {
+  color: var(--admin-muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.business-records {
+  min-width: 0;
+  border-top: 1px solid var(--admin-line);
+}
+
+.business-toolbar {
+  padding: 14px clamp(12px, 3vw, 20px);
+  scroll-margin-top: 130px;
+}
+
+.business-records > .pagination {
+  border-radius: 0 0 13px 13px;
+  background: #f8fafc;
+}
+
 .search-field {
   display: grid;
   gap: 6px;
@@ -330,7 +401,8 @@ textarea {
   transition: transform 150ms ease;
 }
 
-.record-toggle[aria-expanded='true'] .record-chevron {
+.record-toggle[aria-expanded='true'] .record-chevron,
+.business-toggle[aria-expanded='true'] .record-chevron {
   margin-top: 3px;
   transform: rotate(225deg);
 }
@@ -479,7 +551,8 @@ pre {
   text-align: center;
 }
 
-.records > .list-state {
+.records > .list-state,
+.business-groups > .list-state {
   border: 0;
 }
 
@@ -531,6 +604,13 @@ pre {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas: 'identity toggle' 'badge toggle';
     row-gap: 4px;
+  }
+
+  .business-toggle {
+    grid-template-columns: 30px minmax(0, 1fr) 10px;
+    grid-template-areas: 'mark identity chevron' '. category chevron';
+    padding-inline: 12px;
+    row-gap: 5px;
   }
 
   .record-mark {

@@ -10,6 +10,7 @@ import { AdminRecord, AdminSectionKey, adminSearchKey, describeAdminRecord } fro
 
 interface Field { key: string; label: string; type: 'text' | 'number' | 'time' | 'checkbox' | 'textarea' | 'role' | 'category' | 'mode'; }
 interface Section { key: AdminSectionKey; label: string; fields: Field[]; }
+interface AdminPage { items: AdminRecord[]; hasMore: boolean; }
 const field = (key: string, label: string, type: Field['type'] = 'text'): Field => ({ key, label, type });
 
 @Component({ selector: 'app-admin', imports: [FormsModule, JsonPipe, NgTemplateOutlet], templateUrl: './admin.html', styleUrl: './admin.css' })
@@ -19,11 +20,14 @@ export class Admin {
   private readonly injector = inject(Injector);
   private readonly editor = viewChild<ElementRef<HTMLElement>>('editor');
   private readonly sectionTitle = viewChild<ElementRef<HTMLHeadingElement>>('sectionTitle');
+  private readonly businessRecords = viewChild<ElementRef<HTMLElement>>('businessRecords');
   private readonly destroyRef = inject(DestroyRef);
   private readonly http = inject(HttpClient);
   private listRequest?: Subscription;
+  private businessRequest?: Subscription;
   private editorTrigger?: HTMLElement;
   private readonly base = `${environment.apiUrl.replace(/\/$/, '')}/api/admin`;
+  private readonly businessPageSize = 10;
   readonly sections: Section[] = [
     { key: 'users', label: 'Usuarios', fields: [field('name', 'Nombre'), field('role', 'Rol', 'role')] },
     { key: 'businesses', label: 'Negocios', fields: [field('name', 'Nombre'), field('description', 'Descripción', 'textarea'), field('category', 'Tipo de negocio', 'category'), field('professionalName', 'Profesional o terapeuta'), field('specialties', 'Especialidades', 'textarea'), field('address', 'Dirección pública'), field('attentionMode', 'Modalidad de atención', 'mode')] },
@@ -34,6 +38,17 @@ export class Admin {
     { key: 'evidences', label: 'Evidencias', fields: [field('caption', 'Descripción', 'textarea')] }
   ];
   readonly section = signal(this.sections[0]);
+  readonly grouped = computed(() => !['users', 'businesses'].includes(this.section().key));
+  readonly businesses = signal<AdminRecord[]>([]);
+  readonly businessRows = computed(() => this.businesses().map(record => ({
+    record,
+    ...describeAdminRecord('businesses', record),
+  })));
+  readonly openBusiness = signal<AdminRecord | null>(null);
+  readonly businessPage = signal(1);
+  readonly moreBusinesses = signal(false);
+  readonly loadingBusinesses = signal(false);
+  readonly businessError = signal('');
   readonly records = signal<AdminRecord[]>([]);
   readonly search = signal('');
   readonly rows = computed(() => this.records().map(record => ({
@@ -74,25 +89,100 @@ export class Admin {
 
   change(section: Section): void {
     if (this.saving() || section.key === this.section().key) return;
-    this.resetRecordPanels();
+    this.businessRequest?.unsubscribe();
+    this.resetBusinessSelection();
     this.section.set(section);
-    this.page.set(1);
-    this.search.set('');
+    this.businesses.set([]);
+    this.businessPage.set(1);
+    this.moreBusinesses.set(false);
+    this.loadingBusinesses.set(false);
+    this.businessError.set('');
     this.message.set('');
     this.warning.set('');
-    this.load();
+    this.refresh();
     this.revealSection();
   }
-  load(): void {
+
+  refresh(): void {
+    if (this.grouped() && !this.openBusiness()) this.loadBusinesses();
+    else this.load();
+  }
+
+  loadBusinesses(): void {
+    if (!this.grouped() || this.saving()) return;
+    this.businessRequest?.unsubscribe();
+    this.loadingBusinesses.set(true);
+    this.businessError.set('');
+    this.moreBusinesses.set(false);
+    this.businessRequest = this.http.get<AdminPage>(
+      `${this.base}/${this.section().key}/businesses`,
+      { params: { page: this.businessPage(), limit: this.businessPageSize } },
+    ).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: data => {
+        if (!data.items.length && this.businessPage() > 1) {
+          this.businessPage.set(1);
+          this.loadBusinesses();
+          return;
+        }
+        this.businesses.set(data.items);
+        this.moreBusinesses.set(data.hasMore);
+        this.loadingBusinesses.set(false);
+      },
+      error: err => {
+        this.businessError.set(err?.error?.error ?? 'No fue posible cargar los negocios.');
+        this.loadingBusinesses.set(false);
+      },
+    });
+  }
+
+  paginateBusinesses(delta: -1 | 1): void {
+    if (this.loadingBusinesses() || this.saving() || (delta === -1 ? this.businessPage() === 1 : !this.moreBusinesses())) return;
+    this.resetBusinessSelection();
+    this.businessPage.update(value => value + delta);
+    this.loadBusinesses();
+    this.revealSection(true);
+  }
+
+  toggleBusiness(business: AdminRecord): void {
     if (this.saving()) return;
+    const open = this.openBusiness()?.id !== business.id;
+    this.resetBusinessSelection();
+    if (!open) return;
+
+    this.message.set('');
+    this.warning.set('');
+    this.openBusiness.set(business);
+    this.load();
+    this.revealSection(false, true);
+  }
+
+  private resetBusinessSelection(): void {
+    this.listRequest?.unsubscribe();
+    this.openBusiness.set(null);
+    this.resetRecordPanels();
+    this.records.set([]);
+    this.page.set(1);
+    this.search.set('');
+    this.hasMore.set(false);
+    this.loading.set(false);
+    this.error.set('');
+    this.loadError.set('');
+  }
+
+  load(): void {
+    const business = this.openBusiness();
+    if (this.saving() || (this.grouped() && !business)) return;
     this.listRequest?.unsubscribe();
     this.loading.set(true);
     this.loadError.set('');
     this.error.set('');
     this.hasMore.set(false);
     this.records.set([]);
-    this.listRequest = this.http.get<{ items: AdminRecord[]; hasMore: boolean }>(
-      `${this.base}/${this.section().key}`, { params: { page: this.page() } },
+    const params: Record<string, string | number> = business
+      ? { page: this.page(), limit: this.businessPageSize, businessId: business.id }
+      : { page: this.page() };
+    this.listRequest = this.http.get<AdminPage>(
+      `${this.base}/${this.section().key}`, { params },
     ).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: data => {
         this.records.set(data.items);
@@ -110,12 +200,12 @@ export class Admin {
     this.resetRecordPanels();
     this.page.update(value => value + delta);
     this.load();
-    this.revealSection(true);
+    this.revealSection(true, this.grouped());
   }
 
-  private revealSection(focus = false): void {
+  private revealSection(focus = false, withinBusiness = false): void {
     afterNextRender(() => {
-      const title = this.sectionTitle()?.nativeElement;
+      const title = withinBusiness ? this.businessRecords()?.nativeElement : this.sectionTitle()?.nativeElement;
       title?.scrollIntoView?.({ block: 'nearest' });
       if (focus) title?.focus({ preventScroll: true });
     }, { injector: this.injector });
@@ -206,7 +296,14 @@ export class Admin {
     this.saving.set(true); this.error.set('');
     this.http.delete<{ message: string; warning: string | null }>(`${this.base}/${this.section().key}/${record.id}`, { body: { confirm: true } }).subscribe({
       next: result => {
-        this.saving.set(false); this.resetRecordPanels(); this.message.set(result.message); this.warning.set(result.warning ?? '');
+        this.saving.set(false); this.message.set(result.message); this.warning.set(result.warning ?? '');
+        if (this.openBusiness() && this.records().length === 1 && this.page() === 1 && !this.hasMore()) {
+          this.resetBusinessSelection();
+          this.loadBusinesses();
+          this.revealSection(true);
+          return;
+        }
+        this.resetRecordPanels();
         if (this.records().length === 1 && this.page() > 1) this.page.update(value => value - 1);
         this.load();
       },

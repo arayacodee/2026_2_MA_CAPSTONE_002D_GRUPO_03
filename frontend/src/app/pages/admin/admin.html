@@ -22,7 +22,7 @@
         <div class="section-heading">
           <h2 #sectionTitle id="section-title" tabindex="-1">{{ section().label }}</h2>
           <div class="actions">
-            <button type="button" [disabled]="loading() || saving()" (click)="load()">
+            <button type="button" [disabled]="loading() || loadingBusinesses() || saving()" (click)="refresh()">
               <span aria-hidden="true">↻</span> Actualizar
             </button>
             @if (section().key === 'users') {
@@ -32,6 +32,14 @@
             }
           </div>
         </div>
+        @if (grouped()) {
+          <p class="business-instruction">Abre un negocio para ver sus registros.</p>
+        } @else {
+          <ng-container [ngTemplateOutlet]="recordToolbar" />
+        }
+      </header>
+
+      <ng-template #recordToolbar>
         <div class="record-toolbar">
           <div class="search-field">
             <label for="admin-search">Buscar en esta página</label>
@@ -53,7 +61,7 @@
             </p>
           }
         </div>
-      </header>
+      </ng-template>
 
       @if (message()) { <p class="notice success" role="status">{{ message() }}</p> }
       @if (warning()) { <p class="notice warning" role="status">{{ warning() }}</p> }
@@ -136,126 +144,180 @@
         <div class="create-record"><ng-container [ngTemplateOutlet]="editorForm" /></div>
       }
 
-      @if (loading()) {
-        <p class="list-state" role="status">Cargando {{ section().label.toLowerCase() }}…</p>
-      } @else if (loadError()) {
-        <div class="list-state" role="alert">
-          <p>{{ loadError() }}</p>
-          <button type="button" (click)="load()">Reintentar</button>
-        </div>
-      } @else {
-        <div class="records">
-          @for (row of visibleRows(); track row.record.id) {
-            @let record = row.record;
-            @let isOpen = expandedId() === record.id;
-            <article class="record" [class.open]="isOpen">
-              <div class="record-summary">
-                <div class="record-identity">
-                  <span class="record-mark" aria-hidden="true">{{ row.initials }}</span>
-                  <div>
-                    <h3>{{ row.title }}</h3>
-                    @if (row.description) { <p>{{ row.description }}</p> }
+      <ng-template #recordList>
+        @if (loading()) {
+          <p class="list-state" role="status">Cargando {{ section().label.toLowerCase() }}…</p>
+        } @else if (loadError()) {
+          <div class="list-state" role="alert">
+            <p>{{ loadError() }}</p>
+            <button type="button" (click)="load()">Reintentar</button>
+          </div>
+        } @else {
+          <div class="records">
+            @for (row of visibleRows(); track row.record.id) {
+              @let record = row.record;
+              @let isOpen = expandedId() === record.id;
+              <article class="record" [class.open]="isOpen">
+                <div class="record-summary">
+                  <div class="record-identity">
+                    <span class="record-mark" aria-hidden="true">{{ row.initials }}</span>
+                    <div>
+                      <h3>{{ row.title }}</h3>
+                      @if (row.description) { <p>{{ row.description }}</p> }
+                    </div>
                   </div>
+                  @if (row.badge; as badge) {
+                    <span class="badge" [attr.data-tone]="badge.tone">{{ badge.label }}</span>
+                  }
+                  <button type="button" class="record-toggle" [disabled]="saving()" [attr.aria-expanded]="isOpen"
+                    [attr.aria-controls]="isOpen ? 'admin-record-' + record.id : null"
+                    [attr.aria-label]="'Gestionar ' + row.title" (click)="toggleRecord(record)">
+                    Gestionar <span class="record-chevron" aria-hidden="true"></span>
+                  </button>
                 </div>
-                @if (row.badge; as badge) {
-                  <span class="badge" [attr.data-tone]="badge.tone">{{ badge.label }}</span>
-                }
-                <button type="button" class="record-toggle" [disabled]="saving()" [attr.aria-expanded]="isOpen"
-                  [attr.aria-controls]="isOpen ? 'admin-record-' + record.id : null"
-                  [attr.aria-label]="'Gestionar ' + row.title" (click)="toggleRecord(record)">
-                  Gestionar <span class="record-chevron" aria-hidden="true"></span>
-                </button>
-              </div>
 
-              @if (isOpen) {
-                <div class="record-details" [id]="'admin-record-' + record.id">
-                  <div class="actions record-actions">
-                    @if (section().fields.length) {
-                      <button #editButton type="button" [disabled]="saving()" (click)="edit(record, editButton)">Editar</button>
-                    }
-                    @if (section().key === 'users' && record['role'] !== 'SUPERADMIN') {
-                      <button #passwordButton type="button" [disabled]="saving()" (click)="editPassword(record, passwordButton)">Cambiar contraseña</button>
-                    }
-                    @if (section().key === 'reservations' && (record['status'] === 'PENDING' || record['status'] === 'CONFIRMED')) {
-                      <button type="button" [disabled]="saving()" (click)="reservationAction(record, 'cancel')">Cancelar reserva</button>
-                      @if (record['status'] === 'CONFIRMED') {
-                        <button type="button" [disabled]="saving()" (click)="reservationAction(record, 'complete')">Registrar atención</button>
+                @if (isOpen) {
+                  <div class="record-details" [id]="'admin-record-' + record.id">
+                    <div class="actions record-actions">
+                      @if (section().fields.length) {
+                        <button #editButton type="button" [disabled]="saving()" (click)="edit(record, editButton)">Editar</button>
                       }
+                      @if (section().key === 'users' && record['role'] !== 'SUPERADMIN') {
+                        <button #passwordButton type="button" [disabled]="saving()" (click)="editPassword(record, passwordButton)">Cambiar contraseña</button>
+                      }
+                      @if (section().key === 'reservations' && (record['status'] === 'PENDING' || record['status'] === 'CONFIRMED')) {
+                        <button type="button" [disabled]="saving()" (click)="reservationAction(record, 'cancel')">Cancelar reserva</button>
+                        @if (record['status'] === 'CONFIRMED') {
+                          <button type="button" [disabled]="saving()" (click)="reservationAction(record, 'complete')">Registrar atención</button>
+                        }
+                      }
+                      @if (record['imageUrl']) {
+                        <a class="record-link" [href]="value(record, 'imageUrl')" target="_blank" rel="noopener noreferrer">
+                          Abrir imagen <span aria-hidden="true">↗</span>
+                        </a>
+                      }
+                      @if (record['role'] !== 'SUPERADMIN') {
+                        <button #deleteButton type="button" class="danger delete-button" [disabled]="saving()"
+                          (click)="requestDeletion(record, deleteButton)">Eliminar</button>
+                      }
+                    </div>
+
+                    @if (selected()?.id === record.id) {
+                      <ng-container [ngTemplateOutlet]="editorForm" />
                     }
-                    @if (record['imageUrl']) {
-                      <a class="record-link" [href]="value(record, 'imageUrl')" target="_blank" rel="noopener noreferrer">
-                        Abrir imagen <span aria-hidden="true">↗</span>
-                      </a>
+                    @if (passwordUser()?.id === record.id) {
+                      <form #editor class="editor" (ngSubmit)="savePassword()">
+                        <header><h3>Cambiar contraseña</h3><p>{{ value(record, 'email') }}</p></header>
+                        <div class="form-grid">
+                          <label class="form-field">
+                            Nueva contraseña
+                            <input name="newPassword" type="password" autocomplete="new-password" [(ngModel)]="newPassword"
+                              required minlength="8" maxlength="256" [disabled]="saving()" />
+                          </label>
+                          <label class="form-field">
+                            Confirmar contraseña
+                            <input name="confirmPassword" type="password" autocomplete="new-password" [(ngModel)]="confirmPassword"
+                              required minlength="8" maxlength="256" [disabled]="saving()" />
+                          </label>
+                        </div>
+                        @if (error()) { <p class="notice error" role="alert">{{ error() }}</p> }
+                        <div class="actions">
+                          <button type="submit" class="primary" [disabled]="saving()">Guardar contraseña</button>
+                          <button type="button" [disabled]="saving()" (click)="dismissEditor()">Cancelar</button>
+                        </div>
+                      </form>
                     }
-                    @if (record['role'] !== 'SUPERADMIN') {
-                      <button #deleteButton type="button" class="danger delete-button" [disabled]="saving()"
-                        (click)="requestDeletion(record, deleteButton)">Eliminar</button>
+                    @if (deleting()?.id === record.id) {
+                      <section #editor class="delete-confirmation" aria-label="Confirmar eliminación">
+                        <h4>Eliminar {{ row.title }}</h4>
+                        <p>{{ deletionEffects[section().key] }}</p>
+                        <p><strong>Esta eliminación es permanente y no se puede deshacer.</strong></p>
+                        @if (error()) { <p class="notice error" role="alert">{{ error() }}</p> }
+                        <div class="actions">
+                          <button type="button" class="cancel-deletion" [disabled]="saving()" (click)="dismissEditor()">Conservar registro</button>
+                          <button type="button" class="danger" [disabled]="saving()" (click)="confirmDeletion()">
+                            {{ saving() ? 'Eliminando…' : 'Confirmar eliminación' }}
+                          </button>
+                        </div>
+                      </section>
                     }
+
+                    <details>
+                      <summary>Ver todos los datos</summary>
+                      <pre>{{ record | json }}</pre>
+                    </details>
                   </div>
+                }
+              </article>
+            } @empty {
+              <p class="list-state">
+                {{ search().trim() ? 'No se encontraron coincidencias en esta página.' : grouped() ? 'No hay registros de este negocio.' : 'No hay registros en esta sección.' }}
+              </p>
+            }
+          </div>
 
-                  @if (selected()?.id === record.id) {
-                    <ng-container [ngTemplateOutlet]="editorForm" />
-                  }
-                  @if (passwordUser()?.id === record.id) {
-                    <form #editor class="editor" (ngSubmit)="savePassword()">
-                      <header><h3>Cambiar contraseña</h3><p>{{ value(record, 'email') }}</p></header>
-                      <div class="form-grid">
-                        <label class="form-field">
-                          Nueva contraseña
-                          <input name="newPassword" type="password" autocomplete="new-password" [(ngModel)]="newPassword"
-                            required minlength="8" maxlength="256" [disabled]="saving()" />
-                        </label>
-                        <label class="form-field">
-                          Confirmar contraseña
-                          <input name="confirmPassword" type="password" autocomplete="new-password" [(ngModel)]="confirmPassword"
-                            required minlength="8" maxlength="256" [disabled]="saving()" />
-                        </label>
-                      </div>
-                      @if (error()) { <p class="notice error" role="alert">{{ error() }}</p> }
-                      <div class="actions">
-                        <button type="submit" class="primary" [disabled]="saving()">Guardar contraseña</button>
-                        <button type="button" [disabled]="saving()" (click)="dismissEditor()">Cancelar</button>
-                      </div>
-                    </form>
-                  }
-                  @if (deleting()?.id === record.id) {
-                    <section #editor class="delete-confirmation" aria-label="Confirmar eliminación">
-                      <h4>Eliminar {{ row.title }}</h4>
-                      <p>{{ deletionEffects[section().key] }}</p>
-                      <p><strong>Esta eliminación es permanente y no se puede deshacer.</strong></p>
-                      @if (error()) { <p class="notice error" role="alert">{{ error() }}</p> }
-                      <div class="actions">
-                        <button type="button" class="cancel-deletion" [disabled]="saving()" (click)="dismissEditor()">Conservar registro</button>
-                        <button type="button" class="danger" [disabled]="saving()" (click)="confirmDeletion()">
-                          {{ saving() ? 'Eliminando…' : 'Confirmar eliminación' }}
-                        </button>
-                      </div>
-                    </section>
-                  }
-
-                  <details>
-                    <summary>Ver todos los datos</summary>
-                    <pre>{{ record | json }}</pre>
-                  </details>
-                </div>
-              }
-            </article>
-          } @empty {
-            <p class="list-state">
-              {{ search().trim() ? 'No se encontraron coincidencias en esta página.' : 'No hay registros en esta sección.' }}
-            </p>
+          @if (page() > 1 || hasMore() || (grouped() && records().length > 0)) {
+            <nav class="pagination" aria-label="Paginación de registros">
+              <span>{{ grouped() ? 'Registros · ' : '' }}Página {{ page() }}</span>
+              <div class="actions">
+                <button type="button" [disabled]="page() === 1 || saving()" (click)="paginate(-1)">Anterior</button>
+                <button type="button" [disabled]="!hasMore() || saving()" (click)="paginate(1)">Siguiente</button>
+              </div>
+            </nav>
           }
-        </div>
-
-        @if (page() > 1 || hasMore()) {
-          <nav class="pagination" aria-label="Paginación de registros">
-            <span>Página {{ page() }}</span>
-            <div class="actions">
-              <button type="button" [disabled]="page() === 1 || saving()" (click)="paginate(-1)">Anterior</button>
-              <button type="button" [disabled]="!hasMore() || saving()" (click)="paginate(1)">Siguiente</button>
-            </div>
-          </nav>
         }
+      </ng-template>
+
+      @if (grouped()) {
+        @if (loadingBusinesses()) {
+          <p class="list-state" role="status">Cargando negocios…</p>
+        } @else if (businessError()) {
+          <div class="list-state" role="alert">
+            <p>{{ businessError() }}</p>
+            <button type="button" (click)="loadBusinesses()">Reintentar</button>
+          </div>
+        } @else {
+          <div class="business-groups">
+            @for (row of businessRows(); track row.record.id) {
+              @let businessIsOpen = openBusiness()?.id === row.record.id;
+              <div class="business-group">
+                <button type="button" class="business-toggle" [disabled]="saving()" [attr.aria-expanded]="businessIsOpen"
+                  [attr.aria-controls]="businessIsOpen ? 'business-records-' + row.record.id : null"
+                  (click)="toggleBusiness(row.record)">
+                  <span class="record-mark" aria-hidden="true">{{ row.initials }}</span>
+                  <span class="business-identity">
+                    <strong>{{ row.title }}</strong>
+                    @if (row.description) { <small>{{ row.description }}</small> }
+                  </span>
+                  @if (row.badge; as badge) { <span class="badge business-category">{{ badge.label }}</span> }
+                  <span class="record-chevron" aria-hidden="true"></span>
+                </button>
+                @if (businessIsOpen) {
+                  <div class="business-records" [id]="'business-records-' + row.record.id"
+                    role="region" [attr.aria-label]="'Registros de ' + row.title">
+                    <div #businessRecords class="business-toolbar" tabindex="-1">
+                      <ng-container [ngTemplateOutlet]="recordToolbar" />
+                    </div>
+                    <ng-container [ngTemplateOutlet]="recordList" />
+                  </div>
+                }
+              </div>
+            } @empty {
+              <p class="list-state">No hay negocios con registros en esta sección.</p>
+            }
+          </div>
+          @if (businesses().length > 0 || businessPage() > 1) {
+            <nav class="pagination" aria-label="Paginación de negocios">
+              <span>Negocios · Página {{ businessPage() }}</span>
+              <div class="actions">
+                <button type="button" [disabled]="businessPage() === 1 || saving()" (click)="paginateBusinesses(-1)">Anterior</button>
+                <button type="button" [disabled]="!moreBusinesses() || saving()" (click)="paginateBusinesses(1)">Siguiente</button>
+              </div>
+            </nav>
+          }
+        }
+      } @else {
+        <ng-container [ngTemplateOutlet]="recordList" />
       }
     </section>
   </div>

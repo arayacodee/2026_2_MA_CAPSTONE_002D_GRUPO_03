@@ -54,7 +54,6 @@ function activeBadge(value: unknown): Badge | undefined {
 }
 
 export function describeAdminRecord(section: AdminSectionKey, record: AdminRecord) {
-  const business = related(record, 'business', 'name');
   const person = related(record, 'client', 'name') || related(record, 'client', 'email');
   const name = text(record['name']);
 
@@ -71,17 +70,17 @@ export function describeAdminRecord(section: AdminSectionKey, record: AdminRecor
       const duration = text(record['durationMin']);
       const price = text(record['price']);
       return summary(name || 'Servicio sin nombre', [
-        business, duration ? `${duration} min` : '', price && Number.isFinite(Number(price)) ? clp.format(Number(price)) : '',
+        duration ? `${duration} min` : '', price && Number.isFinite(Number(price)) ? clp.format(Number(price)) : '',
       ], activeBadge(record['isActive']));
     }
     case 'availabilities': {
       const hours = [text(record['startTime']), text(record['endTime'])].filter(Boolean).join(' – ');
-      return summary(weekdays[Number(record['dayOfWeek'])] || 'Horario', [hours, business], activeBadge(record['isActive']));
+      return summary(weekdays[Number(record['dayOfWeek'])] || 'Horario', [hours], activeBadge(record['isActive']));
     }
     case 'reservations':
-      return summary(person || 'Reserva', [related(record, 'service', 'name'), business, dateLabel(record['startsAt'])], reservationStatuses[text(record['status'])]);
+      return summary(person || 'Reserva', [related(record, 'service', 'name'), dateLabel(record['startsAt'])], reservationStatuses[text(record['status'])]);
     case 'sessions':
-      return summary(person || 'Atención', [business, dateLabel(record['occurredAt'])]);
+      return summary(person || 'Atención', [dateLabel(record['occurredAt'])]);
     case 'evidences':
       return summary(text(record['caption']) || 'Evidencia fotográfica', [dateLabel(record['createdAt'])]);
   }

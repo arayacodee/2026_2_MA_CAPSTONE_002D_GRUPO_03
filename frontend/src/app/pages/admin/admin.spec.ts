@@ -67,7 +67,7 @@ describe('Administración', () => {
     expect(admin.creating()).toBe(true);
     expect(admin.saving()).toBe(false);
   });
-  it('cancela la carga anterior al cambiar de sección y filtra los registros de la página activa', () => {
+  it('agrupa por negocio, cancela cargas anteriores y pagina los dos niveles por separado', () => {
     const fixture = TestBed.createComponent(Admin);
     const admin = fixture.componentInstance;
     const users = http.expectOne(req => req.url.endsWith('/admin/users'));
@@ -78,12 +78,25 @@ describe('Administración', () => {
     expect(services?.disabled).toBe(false);
     services?.click();
     expect(users.cancelled).toBe(true);
-    http.expectOne(req => req.url.endsWith('/admin/services')).flush({
+    const firstBusiness = { id: 'first', name: 'Estudio Norte' };
+    const secondBusiness = { id: 'second', name: 'Estudio Sur' };
+    const businesses = http.expectOne(req => req.url.endsWith('/admin/services/businesses'));
+    expect(businesses.request.params.get('limit')).toBe('10');
+    businesses.flush({ items: [firstBusiness, secondBusiness], hasMore: true });
+    http.expectNone(req => req.url.endsWith('/admin/services'));
+
+    admin.toggleBusiness(firstBusiness);
+    const firstRequest = http.expectOne(req => req.url.endsWith('/admin/services') && req.params.get('businessId') === firstBusiness.id);
+    admin.toggleBusiness(secondBusiness);
+    expect(firstRequest.cancelled).toBe(true);
+    const secondRequest = http.expectOne(req => req.url.endsWith('/admin/services') && req.params.get('businessId') === secondBusiness.id);
+    expect(secondRequest.request.params.get('page')).toBe('1');
+    secondRequest.flush({
       items: [
         { id: 'consultation', name: 'Evaluación inicial', isActive: true },
         { id: 'class', name: 'Clase grupal', isActive: false },
       ],
-      hasMore: false,
+      hasMore: true,
     });
     fixture.detectChanges();
     const search: HTMLInputElement = fixture.nativeElement.querySelector('#admin-search');
@@ -92,12 +105,25 @@ describe('Administración', () => {
     fixture.detectChanges();
     expect(admin.visibleRows().map(row => row.record.id)).toEqual(['consultation']);
     expect(fixture.nativeElement.querySelector('.result-count').textContent).toContain('1 de 2');
+    admin.paginate(1);
+    const nextRecords = http.expectOne(req => req.url.endsWith('/admin/services') && req.params.get('businessId') === secondBusiness.id);
+    expect(nextRecords.request.params.get('page')).toBe('2');
+    admin.paginateBusinesses(1);
+    expect(nextRecords.cancelled).toBe(true);
+    expect(admin.openBusiness()).toBeNull();
+    expect(admin.page()).toBe(1);
+    const nextBusinesses = http.expectOne(req => req.url.endsWith('/admin/services/businesses'));
+    expect(nextBusinesses.request.params.get('page')).toBe('2');
+    nextBusinesses.flush({ items: [{ id: 'third', name: 'Estudio Centro' }], hasMore: false });
   });
   it('envía números y booleanos al editar un servicio', async () => {
     const fixture = TestBed.createComponent(Admin);
     const admin = fixture.componentInstance;
     http.expectOne(req => req.url.endsWith('/admin/users')).flush({ items: [], hasMore: false });
     admin.change(admin.sections.find(section => section.key === 'services')!);
+    const business = { id: 'business', name: 'Estudio' };
+    http.expectOne(req => req.url.endsWith('/admin/services/businesses')).flush({ items: [business], hasMore: false });
+    admin.toggleBusiness(business);
     const service = { id: 'service', name: 'Evaluación', durationMin: 30, price: '18000', isActive: true };
     http.expectOne(req => req.url.endsWith('/admin/services')).flush({ items: [service], hasMore: false });
     admin.edit(service);
