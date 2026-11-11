@@ -66,14 +66,19 @@ export const adminLogin = async (req: Request, res: Response) => {
   if (req.headers.origin && req.headers.origin !== env.CORS_ORIGIN) return res.status(403).json({ error: 'Origen no permitido.' });
   const parsed = z.object({ email: z.string().trim().toLowerCase().min(3).max(254), password: z.string().min(1).max(256) }).strict().safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Ingresa el usuario y la contraseña.' });
-  if (!env.SUPERADMIN_PASSWORD_HASH) return res.status(503).json({ error: 'El acceso de administración aún no está configurado.' });
-  const validPassword = await verifyAdminPassword(parsed.data.password, env.SUPERADMIN_PASSWORD_HASH);
+  const user = await prisma.user.findUnique({
+    where: { email: env.SUPERADMIN_LOGIN },
+    select: { id: true, email: true, name: true, role: true, passwordHash: true },
+  });
+  const storedHash = user?.role === 'SUPERADMIN' ? user.passwordHash : null;
+  const passwordHash = storedHash ?? env.SUPERADMIN_PASSWORD_HASH;
+  if (!passwordHash) return res.status(503).json({ error: 'El acceso de administración aún no está configurado.' });
+  const validPassword = await verifyAdminPassword(parsed.data.password, passwordHash);
   if (parsed.data.email !== env.SUPERADMIN_LOGIN || !validPassword) return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
-  const user = await prisma.user.findUnique({ where: { email: env.SUPERADMIN_LOGIN }, select: { id: true, email: true, name: true, role: true } });
   if (!user || user.role !== 'SUPERADMIN') return res.status(403).json({ error: 'La cuenta de administración aún no está habilitada.' });
   const token = await createSessionToken(user.id);
   res.cookie(SESSION_COOKIE, token, cookieOptions);
-  return res.json({ user });
+  return res.json({ user: { id: user.id, email: user.email, name: user.name, role: user.role } });
 };
 
 export const googleLogin = async (

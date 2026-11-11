@@ -26,7 +26,7 @@ test('hash con sal aleatoria, comparación y rechazo de contraseñas incorrectas
   assert.notEqual(await hashAdminPassword('test-password'), passwordHash);
   assert.equal(await verifyAdminPassword('test-password', 'malformed'), false);
 });
-test('ingreso local no eleva roles ni crea cuentas y emite la cookie solo para el superadmin habilitado', async () => {
+test('el acceso con el hash de entorno requiere una cuenta superadmin habilitada', async () => {
   const original = prisma.user.findUnique;
   const originalHash = env.SUPERADMIN_PASSWORD_HASH;
   let lookups = 0;
@@ -35,11 +35,11 @@ test('ingreso local no eleva roles ni crea cuentas y emite la cookie solo para e
   const request = (email = 'superadmin@cronos', password = 'test-password', origin?: string) => ({ body: { email, password }, headers: origin ? { origin } : {} }) as any;
   try {
     const wrongPassword = response(); await adminLogin(request(undefined, 'wrong'), wrongPassword as any);
-    assert.equal(wrongPassword.statusCode, 401); assert.equal(lookups, 0); assert.equal(wrongPassword.cookies.length, 0);
+    assert.equal(wrongPassword.statusCode, 401); assert.equal(wrongPassword.cookies.length, 0);
     const wrongUser = response(); await adminLogin(request('client@example.com'), wrongUser as any);
-    assert.equal(wrongUser.statusCode, 401); assert.equal(lookups, 0);
+    assert.equal(wrongUser.statusCode, 401);
     const otherOrigin = response(); await adminLogin(request(undefined, undefined, 'https://other.example'), otherOrigin as any);
-    assert.equal(otherOrigin.statusCode, 403);
+    assert.equal(otherOrigin.statusCode, 403); assert.equal(lookups, 2);
     user.role = 'CLIENT'; const client = response(); await adminLogin(request(), client as any);
     assert.equal(client.statusCode, 403); assert.equal(client.cookies.length, 0);
     user = null; const absent = response(); await adminLogin(request(), absent as any); assert.equal(absent.statusCode, 403);
@@ -53,6 +53,32 @@ test('ingreso local no eleva roles ni crea cuentas y emite la cookie solo para e
     const disabled = response(); await adminLogin(request(), disabled as any); assert.equal(disabled.statusCode, 503);
   } finally { prisma.user.findUnique = original; env.SUPERADMIN_PASSWORD_HASH = originalHash; }
 });
+
+test('el hash de la base habilita el acceso sin configuración local y prevalece al rotar la contraseña', async () => {
+  const original = prisma.user.findUnique;
+  const originalHash = env.SUPERADMIN_PASSWORD_HASH;
+  const user = {
+    id: 'shared-admin', email: 'superadmin@cronos', name: 'Admin', role: 'SUPERADMIN',
+    passwordHash: await hashAdminPassword('shared-password'),
+  };
+  prisma.user.findUnique = (async () => user) as any;
+  const request = (password: string) => ({ body: { email: user.email, password }, headers: {} }) as any;
+  try {
+    const rotated = response();
+    await adminLogin(request('test-password'), rotated as any);
+    assert.equal(rotated.statusCode, 401);
+    assert.equal(rotated.cookies.length, 0);
+
+    env.SUPERADMIN_PASSWORD_HASH = undefined;
+    const success = response();
+    await adminLogin(request('shared-password'), success as any);
+    assert.equal(success.statusCode, 200);
+    assert.equal(success.body.user.role, 'SUPERADMIN');
+    assert.equal('passwordHash' in success.body.user, false);
+    assert.equal((await verifySessionToken(success.cookies[0][1])).userId, user.id);
+  } finally { prisma.user.findUnique = original; env.SUPERADMIN_PASSWORD_HASH = originalHash; }
+});
+
 test('límite por dirección bloquea el undécimo intento y permite otra dirección', () => {
   const limit = adminLoginLimit();
   let calls = 0;

@@ -28,9 +28,9 @@ Los perfiles permiten elegir Servicios generales (predeterminado), Bienestar y t
 
 El panel ofrece eliminación permanente con confirmación para usuarios (excepto superadmins), negocios, servicios, horarios, reservas, atenciones y evidencias. Borrar un usuario incluye sus negocios y reservas como cliente; borrar un negocio o servicio incluye sus reservas e historial. Borrar una atención elimina también su reserva vinculada. Horarios y evidencias se eliminan individualmente. Las cuentas de otros usuarios se conservan. Un usuario eliminado puede volver a registrarse con Google como cliente nuevo; eliminar no equivale a bloquearlo. Las eliminaciones de datos se realizan en una transacción serializable, sin migraciones adicionales. Las imágenes se limpian en Cloudinary después del commit; si falla la limpieza, el panel muestra una advertencia y el servidor registra los identificadores pendientes para revisión.
 
-La cuenta compartida ingresa por `/admin/login` con el identificador `superadmin@cronos` y la contraseña: cronos123. Este identificador no es un buzón de correo ni necesita Google. Las cuentas personales de los profesionales mantienen su rol y negocio.
+La cuenta compartida ingresa por `/admin/login` con el identificador `superadmin@cronos` y la contraseña configurada para el equipo. El identificador se usa exclusivamente para el inicio de sesión de administración.
 
-En `backend`, ejecutar `npm run admin:configure` e ingresar la contraseña elegida. Guarda `SUPERADMIN_LOGIN` y `SUPERADMIN_PASSWORD_HASH` en el `.env` local, con sal aleatoria y scrypt; nunca escribe la contraseña en el código ni en la base de datos. Este archivo no se versiona. Cada PC que ejecute su propio backend debe configurar el mismo usuario y contraseña (los hashes pueden ser distintos).
+En `backend`, ejecutar `npm run admin:configure` e ingresar la contraseña elegida. El comando prepara `SUPERADMIN_PASSWORD_HASH` en el `.env` local con scrypt y una sal aleatoria.
 
 Una vez confirmado que `DATABASE_URL` corresponde a la base de desarrollo, aplicar las migraciones con `npx prisma migrate deploy`, generar el cliente con `npm run prisma:generate` y ejecutar:
 
@@ -38,7 +38,7 @@ Una vez confirmado que `DATABASE_URL` corresponde a la base de desarrollo, aplic
 npm run admin:provision
 ```
 
-El comando crea la cuenta compartida y es idempotente. Rechaza identificadores de cuentas con Google o con otro rol. No modifica las cuentas personales. Reiniciar el backend tras cambiar `.env`. El acceso devuelve un error si falta el hash o la cuenta todavía no está habilitada. El servidor limita los intentos a diez por IP cada quince minutos en cada proceso y utiliza la misma cookie HttpOnly de sesión que el resto de la aplicación. Si el backend está detrás de un proxy, configurar su topología de confianza antes de ajustar este límite; no confiar indiscriminadamente en cabeceras reenviadas.
+El comando crea la cuenta compartida o actualiza su hash en la base de datos. Rechaza identificadores de cuentas con Google o con otro rol. El backend valida el hash de la base y usa el de `.env` como respaldo para cuentas que todavía no se han aprovisionado con el flujo nuevo. Después de aprovisionar la cuenta, cada PC solo necesita el backend actualizado y conectado a la misma base para usar la misma contraseña. El servidor limita los intentos a diez por IP cada quince minutos en cada proceso y utiliza la misma cookie HttpOnly de sesión que el resto de la aplicación. Si el backend está detrás de un proxy, configura su topología de confianza antes de ajustar este límite.
 
 Las elevaciones a superadmin solo se realizan con el comando de servidor, nunca desde el registro público ni desde el panel. Las acciones de la cuenta compartida se atribuyen al mismo usuario, sin distinguir cuál de sus operadores ingresó.
 
