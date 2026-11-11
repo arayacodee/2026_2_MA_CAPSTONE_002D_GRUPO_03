@@ -1,7 +1,7 @@
 import { Component, DestroyRef, OnInit, inject, signal, computed, viewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { finalize } from 'rxjs';
+import { finalize, Subscription } from 'rxjs';
 import { ApiService } from '../../core/services/api.service';
 import { Business } from '../../models/business.model';
 import { businessLabels } from '../../models/business-category';
@@ -24,8 +24,10 @@ export class ProfessionalHistory implements OnInit {
   readonly error = signal('');
   readonly nextCursor = signal<string | null>(null);
   readonly page = signal(0);
+  readonly month = signal('');
   readonly pageSize = 10;
   private cursors: (string | undefined)[] = [undefined];
+  private request?: Subscription;
 
   ngOnInit() {
     this.api.getMyBusiness().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
@@ -39,7 +41,7 @@ export class ProfessionalHistory implements OnInit {
     if (this.loading()) return;
     this.loading.set(true);
     this.error.set('');
-    this.api.getSessions(cursor, this.pageSize).pipe(
+    this.request = this.api.getSessions(cursor, this.pageSize, this.month() || undefined).pipe(
       takeUntilDestroyed(this.destroyRef), finalize(() => this.loading.set(false)),
     ).subscribe({
       next: result => {
@@ -50,6 +52,18 @@ export class ProfessionalHistory implements OnInit {
       },
       error: error => this.error.set(error?.error?.error ?? 'No fue posible cargar el historial.'),
     });
+  }
+
+  selectMonth(month: string) {
+    if (month === this.month()) return;
+
+    this.request?.unsubscribe();
+    this.month.set(month);
+    this.sessions.set([]);
+    this.page.set(0);
+    this.nextCursor.set(null);
+    this.cursors = [undefined];
+    this.load();
   }
 
   next() { const cursor = this.nextCursor(); if (cursor) this.load(this.page() + 1, cursor); }

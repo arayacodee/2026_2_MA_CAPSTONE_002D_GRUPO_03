@@ -277,14 +277,17 @@ export class ApiService {
     );
   }
 
-  getSessions(cursor?: string, limit = 50): Observable<SessionPage> {
+  getSessions(cursor?: string, limit = 50, month?: string): Observable<SessionPage> {
     return this.http.get<SessionPage>(
-      `${this.baseUrl}/api/sessions`, { params: cursor ? { cursor, limit } : { limit } }
+      `${this.baseUrl}/api/sessions`,
+      { params: { limit, ...(cursor ? { cursor } : {}), ...(month ? { month } : {}) } },
     );
   }
 
-  getAttentionMetrics(): Observable<AttentionMetrics> {
-    return this.http.get<AttentionMetrics>(`${this.baseUrl}/api/sessions/metrics`);
+  getAttentionMetrics(month?: string): Observable<AttentionMetrics> {
+    return this.http.get<AttentionMetrics>(
+      `${this.baseUrl}/api/sessions/metrics`, { params: month ? { month } : {} },
+    );
   }
 
   updateSession(id: string, notes: string | null): Observable<ClientSession> {

@@ -2,7 +2,16 @@
   <a class="back" routerLink="/dashboard">← Volver al panel</a>
   <header><div><p class="eyebrow">REGISTRO DE TU NEGOCIO</p><h1 id="history-title">{{ labels().history }}</h1>
     <p>Consulta el detalle de cada atención, sus notas y evidencias privadas.</p></div><span class="private-label">Historial privado</span></header>
-  <app-attention-metrics />
+  <div class="month-filter">
+    <label for="history-month">Filtrar por mes</label>
+    <div class="month-controls">
+      <input #monthPicker id="history-month" type="month" min="1000-01" max="9999-12"
+        placeholder="AAAA-MM" pattern="[1-9][0-9]{3}-(0[1-9]|1[0-2])"
+        [value]="month()" (change)="monthPicker.reportValidity() && selectMonth(monthPicker.value)" />
+      <button type="button" [disabled]="!month()" (click)="monthPicker.focus(); selectMonth('')">Quitar filtro</button>
+    </div>
+  </div>
+  <app-attention-metrics [month]="month()" />
   @if (error()) { <div class="error" role="alert">{{ error() }} <button type="button" (click)="load()" [disabled]="loading()">Reintentar</button></div> }
   @if (loading()) { <p role="status">Cargando atenciones…</p> }
   <section class="history-card" aria-label="Atenciones registradas" [attr.aria-busy]="loading()">
@@ -21,7 +30,7 @@
               <td><button type="button" (click)="detail().openSession(session)" [attr.aria-label]="'Ver detalle de atención de ' + (session.client?.name || session.client?.email || labels().person)">Ver detalle ↗</button></td>
             </tr>
           } @empty {
-            <tr><td colspan="7" class="empty">{{ loading() ? 'Cargando registros…' : error() ? 'El historial no está disponible. Reintenta la carga.' : 'Aún no hay atenciones registradas. Registra la primera desde el panel.' }}</td></tr>
+            <tr><td colspan="7" class="empty">{{ loading() ? 'Cargando registros…' : error() ? 'El historial no está disponible. Reintenta la carga.' : month() ? 'No hay atenciones registradas en el mes seleccionado.' : 'Aún no hay atenciones registradas. Registra la primera desde el panel.' }}</td></tr>
           }
         </tbody>
       </table>

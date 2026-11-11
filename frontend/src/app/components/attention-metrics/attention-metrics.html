@@ -6,14 +6,16 @@
   @if (loading()) { <p role="status" class="muted">Cargando resumen…</p> }
   @if (metrics(); as data) {
     <div class="metric-grid">
-      <article><span>Atenciones de hoy</span><strong>{{ data.todayCount }}</strong><small>Servicios completados hoy</small></article>
+      @if (!month()) {
+        <article><span>Atenciones de hoy</span><strong>{{ data.todayCount }}</strong><small>Servicios completados hoy</small></article>
+      }
       <article><span>Atenciones del mes</span><strong>{{ data.monthCount }}</strong><small>Según fecha de la atención</small></article>
       <article><span>Clientes atendidos</span><strong>{{ data.uniqueClients }}</strong><small>Clientes únicos en el mes</small></article>
       <article><span>Valor de servicios del mes</span><strong>{{ formatPrice(data.revenue) }}</strong><small>Según el monto guardado de cada atención</small></article>
     </div>
     @if (data.missingAmountCount) { <p class="muted">Atenciones del mes sin monto registrado: {{ data.missingAmountCount }}. No se incluyen en el total de valores.</p> }
     <div class="activity"><div class="chart-heading"><h3>Atenciones por día</h3><span>{{ data.monthCount }} en {{ monthLabel() }}</span></div>
-      @if (!data.monthCount) { <p class="muted">Aún no hay atenciones completadas este mes.</p> }
+      @if (!data.monthCount) { <p class="muted">No hay atenciones completadas en {{ monthLabel() }}.</p> }
       <div class="chart-scroll" tabindex="0" role="region" aria-label="Atenciones de cada día del mes">
         <ol class="chart">
           @for (day of data.daily; track day.date) {

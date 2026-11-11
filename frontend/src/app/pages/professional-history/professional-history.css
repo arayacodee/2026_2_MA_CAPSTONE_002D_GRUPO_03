@@ -5,6 +5,10 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 h1 { font-size: clamp(30px, 4vw, 44px); line-height: 1.1; letter-spacing: -.045em; margin-bottom: 14px; }
 header p:last-child { color: #64646c; line-height: 1.5; margin-bottom: 0; }
 .private-label { background: #eaeaec; color: #48484e; font-size: 12px; padding: 9px 14px; border-radius: 999px; white-space: nowrap; }
+.month-filter { display: grid; gap: 8px; }
+.month-filter label { font-size: 13px; font-weight: 600; }
+.month-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.month-controls input { min-height: 40px; max-width: 100%; padding: 8px 12px; border: 1px solid #9898a1; border-radius: 10px; background: var(--surface); color: var(--text-primary); font-size: 14px; }
 .history-card { background: white; border: 1px solid var(--border); border-radius: 24px; overflow: hidden; box-shadow: var(--shadow-small); }
 .table-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 24px; }
 h2 { font-size: 18px; margin: 0; letter-spacing: -.02em; }
@@ -22,7 +26,7 @@ tbody tr:hover { background: #fbfbfd; }
 .note-preview { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 190px; min-width: 100px; overflow-wrap: anywhere; color: #64646c; }
 button { min-height: 40px; border: 1px solid var(--border-strong); border-radius: 999px; padding: 9px 14px; font-weight: 600; font-size: 12px; background: white; color: var(--text-primary); white-space: nowrap; cursor: pointer; }
 button:hover { background: #f1f1f3; } button:disabled { opacity: .45; cursor: default; }
-button:focus-visible, a:focus-visible, .table-scroll:focus-visible { outline: 3px solid #0071e3; outline-offset: 3px; }
+button:focus-visible, input:focus-visible, a:focus-visible, .table-scroll:focus-visible { outline: 3px solid #0071e3; outline-offset: 3px; }
 .pagination { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 24px; border-top: 1px solid var(--border); }
 .pagination p { margin: 0; } .pagination div { display: flex; gap: 8px; }
 .empty { padding: 56px 24px; text-align: center; color: #64646c; }

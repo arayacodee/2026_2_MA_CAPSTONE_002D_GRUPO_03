@@ -1,7 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { ApiService } from '../../core/services/api.service';
+import { SessionPage } from '../../models/reservation.model';
 import { ProfessionalHistory } from './professional-history';
 
 describe('Historial profesional', () => {
@@ -39,13 +40,41 @@ describe('Historial profesional', () => {
     fixture.detectChanges();
     api.getSessions.mockReturnValueOnce(of({ items: [{ ...session, id: 'second' }], nextCursor: null }));
     fixture.componentInstance.next();
-    expect(api.getSessions).toHaveBeenLastCalledWith('next', 10);
+    expect(api.getSessions).toHaveBeenLastCalledWith('next', 10, undefined);
     expect(fixture.componentInstance.sessions().map(item => item.id)).toEqual(['second']);
     expect(fixture.componentInstance.page()).toBe(1);
     fixture.componentInstance.previous();
-    expect(api.getSessions).toHaveBeenLastCalledWith(undefined, 10);
+    expect(api.getSessions).toHaveBeenLastCalledWith(undefined, 10, undefined);
     expect(fixture.componentInstance.sessions().map(item => item.id)).toEqual(['session']);
     expect(fixture.componentInstance.page()).toBe(0);
+  });
+  it('aplica el mes al resumen y a toda la paginación, y descarta solicitudes del filtro anterior', () => {
+    const fixture = TestBed.createComponent(ProfessionalHistory);
+    fixture.detectChanges();
+    fixture.componentInstance.next();
+    const pendingPage = new Subject<SessionPage>();
+    api.getSessions.mockReturnValueOnce(pendingPage);
+    fixture.componentInstance.previous();
+    expect(pendingPage.observed).toBe(true);
+
+    const picker: HTMLInputElement = fixture.nativeElement.querySelector('#history-month');
+    picker.value = '2026-09';
+    picker.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    expect(pendingPage.observed).toBe(false);
+    expect(fixture.componentInstance.page()).toBe(0);
+    expect(api.getSessions).toHaveBeenLastCalledWith(undefined, 10, '2026-09');
+    expect(api.getAttentionMetrics).toHaveBeenLastCalledWith('2026-09');
+
+    fixture.componentInstance.next();
+    expect(api.getSessions).toHaveBeenLastCalledWith('next', 10, '2026-09');
+    const clear: HTMLButtonElement = fixture.nativeElement.querySelector('.month-controls button');
+    clear.click();
+    fixture.detectChanges();
+    expect(picker.value).toBe('');
+    expect(fixture.componentInstance.page()).toBe(0);
+    expect(api.getSessions).toHaveBeenLastCalledWith(undefined, 10, undefined);
+    expect(api.getAttentionMetrics).toHaveBeenLastCalledWith(undefined);
   });
   it('conserva la página actual si falla la siguiente y permite reintentar', () => {
     const fixture = TestBed.createComponent(ProfessionalHistory);

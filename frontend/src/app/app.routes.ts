@@ -10,7 +10,6 @@ import { ProfessionalAvailability } from './pages/professional-availability/prof
 import { clientGuard } from './core/guards/client.guard';
 import { professionalGuard } from './core/guards/professional.guard';
 import { ProfessionalOnboarding } from './pages/professional-onboarding/professional-onboarding';
-import { ProfessionalHistory } from './pages/professional-history/professional-history';
 
 
 export const routes: Routes = [
@@ -18,7 +17,7 @@ export const routes: Routes = [
   { path: 'companies', loadComponent: () => import('./pages/companies/companies').then(module => module.Companies) },
   { path: 'admin/login', loadComponent: () => import('./pages/admin-login/admin-login').then(module => module.AdminLogin) },
   { path: 'admin', loadComponent: () => import('./pages/admin/admin').then(module => module.Admin), canActivate: [superadminGuard] },
-  { path: 'dashboard/history', component: ProfessionalHistory, canActivate: [professionalGuard] },
+  { path: 'dashboard/history', loadComponent: () => import('./pages/professional-history/professional-history').then(module => module.ProfessionalHistory), canActivate: [professionalGuard] },
   {
     path: '',
     component: Home
