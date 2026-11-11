@@ -34,6 +34,8 @@ test('administración exige superadmin, consulta global y bloquea escalamiento y
     for (const denied of ['CLIENT', 'PROFESSIONAL'] as const) {
       role = denied;
       assert.equal((await fetch(`${url}/users`, { headers: { cookie } })).status, 403);
+      assert.equal((await fetch(`${url}/evidences/businesses`, { headers: { cookie } })).status, 403);
+      assert.equal((await fetch(`${url}/reservations?businessId=${id}`, { headers: { cookie } })).status, 403);
       assert.equal((await patch({ role: 'PROFESSIONAL' })).status, 403);
       assert.equal((await fetch(`${url}/users/${id}/password`, { method: 'PATCH', headers: { cookie, 'Content-Type': 'application/json' }, body: JSON.stringify({ password: 'new-password' }) })).status, 403);
       assert.equal((await fetch(`${url}/businesses/${id}`, { method: 'DELETE', headers: { cookie, 'Content-Type': 'application/json' }, body: JSON.stringify({ confirm: true }) })).status, 403);
@@ -66,6 +68,66 @@ test('administración exige superadmin, consulta global y bloquea escalamiento y
   } finally {
     prisma.user.findUnique = originals.user; prisma.user.findMany = originals.users;
     prisma.business.findMany = originals.business; prisma.user.updateMany = originals.update;
+    await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+  }
+});
+
+test('pagina los negocios por módulo y filtra los registros antes de paginarlos', async () => {
+  const originals = {
+    user: prisma.user.findUnique,
+    business: prisma.business.findMany,
+    service: prisma.service.findMany,
+    evidence: prisma.sessionEvidence.findMany,
+  };
+  const businessId = '00000000-0000-4000-8000-000000000001';
+  const rows = Array.from({ length: 3 }, (_, index) => ({ id: String(index) }));
+  prisma.user.findUnique = (async () => ({ id: 'admin', role: 'SUPERADMIN' })) as any;
+  prisma.business.findMany = (async (args: any) => {
+    assert.deepEqual(args.where, { clientSessions: { some: { evidences: { some: {} } } } });
+    assert.deepEqual(args.orderBy, [{ name: 'asc' }, { id: 'asc' }]);
+    assert.equal(args.skip, 2);
+    assert.equal(args.take, 3);
+    return rows;
+  }) as any;
+  prisma.service.findMany = (async (args: any) => {
+    assert.deepEqual(args.where, { businessId });
+    assert.equal(args.skip, 2);
+    assert.equal(args.take, 3);
+    return rows;
+  }) as any;
+  prisma.sessionEvidence.findMany = (async (args: any) => {
+    assert.deepEqual(args.where, { session: { businessId } });
+    assert.equal(args.skip, 2);
+    assert.equal(args.take, 3);
+    return rows;
+  }) as any;
+
+  const app = express();
+  app.use(cookieParser());
+  app.use('/api/admin', routes);
+  const server = app.listen(0, '127.0.0.1');
+  await new Promise<void>(resolve => server.once('listening', resolve));
+  const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api/admin`;
+  const cookie = `cronos_session=${await createSessionToken('admin')}`;
+  const get = (path: string) => fetch(`${url}/${path}`, { headers: { cookie } });
+  try {
+    for (const path of [
+      'evidences/businesses?page=2&limit=2',
+      `services?businessId=${businessId}&page=2&limit=2`,
+      `evidences?businessId=${businessId}&page=2&limit=2`,
+    ]) {
+      const response = await get(path);
+      assert.equal(response.status, 200);
+      assert.deepEqual(await response.json(), { items: rows.slice(0, 2), hasMore: true });
+    }
+    assert.equal((await get('services?businessId=invalid')).status, 400);
+    assert.equal((await get(`users?businessId=${businessId}`)).status, 400);
+    assert.equal((await get('services/businesses?limit=51')).status, 400);
+  } finally {
+    prisma.user.findUnique = originals.user;
+    prisma.business.findMany = originals.business;
+    prisma.service.findMany = originals.service;
+    prisma.sessionEvidence.findMany = originals.evidence;
     await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
   }
 });

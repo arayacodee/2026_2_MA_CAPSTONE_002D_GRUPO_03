@@ -30,26 +30,63 @@ const serviceFields = z.object({ name: text.optional(), description: description
 const availabilityFields = z.object({ dayOfWeek: z.number().int().min(1).max(7).optional(), startTime: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/).optional(), endTime: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/).optional(), isActive: z.boolean().optional() }).strict();
 const sessionFields = z.object({ notes: z.string().max(1500).nullable().optional() }).strict();
 const evidenceFields = z.object({ caption: z.string().max(300).nullable().optional() }).strict();
-const resourceSchema = z.enum(['users', 'businesses', 'services', 'availabilities', 'reservations', 'sessions', 'evidences']);
-const pageSchema = z.object({ page: z.coerce.number().int().min(1).max(100000).default(1) });
+const groupedResourceSchema = z.enum(['services', 'availabilities', 'reservations', 'sessions', 'evidences']);
+const resourceSchema = z.enum(['users', 'businesses', ...groupedResourceSchema.options]);
+const pageSchema = z.object({
+  page: z.coerce.number().int().min(1).max(100000).default(1),
+  limit: z.coerce.number().int().min(1).max(50).default(50),
+});
+const listSchema = pageSchema.extend({ businessId: z.string().uuid().optional() });
+
+const businessesWithRecords = {
+  services: { services: { some: {} } },
+  availabilities: { availabilities: { some: {} } },
+  reservations: { reservations: { some: {} } },
+  sessions: { clientSessions: { some: {} } },
+  evidences: { clientSessions: { some: { evidences: { some: {} } } } },
+};
+
+router.get('/:resource/businesses', async (req, res) => {
+  const resource = groupedResourceSchema.safeParse(req.params.resource);
+  const pagination = pageSchema.safeParse(req.query);
+  if (!resource.success) return void res.status(404).json({ error: 'Sección inexistente.' });
+  if (!pagination.success) return void res.status(400).json({ error: 'Página inválida.' });
+  const { page, limit } = pagination.data;
+  const businesses = await prisma.business.findMany({
+    where: businessesWithRecords[resource.data],
+    orderBy: [{ name: 'asc' }, { id: 'asc' }],
+    skip: (page - 1) * limit,
+    take: limit + 1,
+    select: { id: true, name: true, category: true, owner: { select: { name: true, email: true } } },
+  });
+  res.json({ items: businesses.slice(0, limit), hasMore: businesses.length > limit });
+});
 
 router.get('/:resource', async (req, res) => {
   const resource = resourceSchema.safeParse(req.params.resource);
-  const page = pageSchema.safeParse(req.query);
+  const query = listSchema.safeParse(req.query);
   if (!resource.success) return void res.status(404).json({ error: 'Sección inexistente.' });
-  if (!page.success) return void res.status(400).json({ error: 'Página inválida.' });
-  const args = { take: 51, skip: (page.data.page - 1) * 50, orderBy: [{ createdAt: 'desc' as const }, { id: 'desc' as const }] };
+  if (!query.success) return void res.status(400).json({ error: 'Filtros de listado inválidos.' });
+  const { page, limit, businessId } = query.data;
+  if (businessId && !groupedResourceSchema.safeParse(resource.data).success) {
+    return void res.status(400).json({ error: 'Esta sección no admite el filtro por negocio.' });
+  }
+  const args = { take: limit + 1, skip: (page - 1) * limit, orderBy: [{ createdAt: 'desc' as const }, { id: 'desc' as const }] };
+  const where = businessId ? { businessId } : undefined;
   let items;
   switch (resource.data) {
     case 'users': items = await prisma.user.findMany({ ...args, select: userSelect }); break;
     case 'businesses': items = await prisma.business.findMany({ ...args, include: { owner: { select: userSelect } } }); break;
-    case 'services': items = await prisma.service.findMany({ ...args, include: { business: { select: { id: true, name: true } } } }); break;
-    case 'availabilities': items = await prisma.availability.findMany({ ...args, include: { business: { select: { id: true, name: true } } } }); break;
-    case 'reservations': items = await prisma.reservation.findMany({ ...args, include: { business: { select: { id: true, name: true } }, service: true, client: { select: userSelect } } }); break;
-    case 'sessions': items = await prisma.clientSession.findMany({ ...args, include: { business: { select: { id: true, name: true } }, client: { select: userSelect } } }); break;
-    case 'evidences': items = await prisma.sessionEvidence.findMany({ ...args, include: { session: { select: { businessId: true, clientId: true, occurredAt: true } } } }); break;
+    case 'services': items = await prisma.service.findMany({ ...args, where, include: { business: { select: { id: true, name: true } } } }); break;
+    case 'availabilities': items = await prisma.availability.findMany({ ...args, where, include: { business: { select: { id: true, name: true } } } }); break;
+    case 'reservations': items = await prisma.reservation.findMany({ ...args, where, include: { business: { select: { id: true, name: true } }, service: true, client: { select: userSelect } } }); break;
+    case 'sessions': items = await prisma.clientSession.findMany({ ...args, where, include: { business: { select: { id: true, name: true } }, client: { select: userSelect } } }); break;
+    case 'evidences': items = await prisma.sessionEvidence.findMany({
+      ...args, where: where ? { session: where } : undefined,
+      include: { session: { select: { businessId: true, clientId: true, occurredAt: true } } },
+    }); break;
   }
-  res.json({ items: items.slice(0, 50), hasMore: items.length > 50 });
+  res.json({ items: items.slice(0, limit), hasMore: items.length > limit });
 });
 
 router.post('/users', async (req, res) => {
