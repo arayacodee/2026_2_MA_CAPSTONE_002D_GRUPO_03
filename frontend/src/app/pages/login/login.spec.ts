@@ -14,7 +14,6 @@ describe('Login', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     expect(fixture.componentInstance).toBeTruthy();
-    expect(fixture.nativeElement.querySelector('.admin-access')?.getAttribute('href')).toBe('/admin/login');
   });
   it('permite elegir acceso o registro y solo el registro solicita datos personales', async () => {
     const fixture = TestBed.createComponent(Login);

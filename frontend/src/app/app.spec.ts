@@ -13,6 +13,8 @@ describe('App', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     expect(fixture.componentInstance).toBeTruthy();
+    const adminAccess = fixture.nativeElement.querySelector('footer a[href="/admin/login"]');
+    expect(adminAccess?.textContent.trim()).toBe('Acceso administración');
   });
   it('muestra Resumen para profesionales y lo dirige al historial', () => {
     TestBed.overrideProvider(AuthService, { useValue: {
