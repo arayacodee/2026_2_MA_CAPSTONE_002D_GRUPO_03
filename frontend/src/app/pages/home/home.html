@@ -78,20 +78,29 @@
       <h2 id="booking-experience-title">Reserva en 3 simples pasos.</h2>
     </div>
 
-    <div class="booking-guide">
-      <ol class="booking-steps" role="list">
-        @for (step of bookingSteps; track step.title; let index = $index) {
-          <li [class.active]="index === demo.step()">
-            <span class="booking-step-number" aria-hidden="true">{{ index + 1 }}</span>
-            <div>
-              <h3>{{ step.title }}</h3>
-              <p>{{ step.description }}</p>
-            </div>
-          </li>
-        }
-      </ol>
+    <div class="booking-guide" [appAutoplayPreview]="bookingSteps.length" #demo="autoplayPreview">
+      <div class="booking-guide-copy">
+        <ol class="booking-steps" role="list">
+          @for (step of bookingSteps; track step.title; let index = $index) {
+            <li [class.active]="index === demo.step()">
+              <button type="button" class="booking-step" aria-controls="booking-preview"
+                [attr.aria-label]="step.title + (demo.paused() && index === demo.step() ? ', reanudar recorrido' : ', mantener este paso')"
+                [attr.aria-describedby]="'booking-step-description-' + index"
+                (click)="demo.selectStep(index)">
+                <span class="booking-step-number" aria-hidden="true">{{ index + 1 }}</span>
+                <span>
+                  <strong class="booking-step-title">{{ step.title }}</strong>
+                  <span class="booking-step-description" [id]="'booking-step-description-' + index">
+                    {{ step.description }}
+                  </span>
+                </span>
+              </button>
+            </li>
+          }
+        </ol>
+      </div>
 
-      <div class="booking-demo" appAutoplayPreview #demo="autoplayPreview" aria-hidden="true">
+      <div id="booking-preview" class="booking-demo" aria-hidden="true">
         <div class="mock-window booking-window">
           <div class="mock-window-bar">
             <span></span><span></span><span></span>
@@ -104,8 +113,8 @@
             }
           </div>
 
-          <div class="preview-track" [style.--preview-offset]="-100 * demo.step() + '%'">
-            <div class="booking-scene">
+          <div class="booking-scenes">
+            <div class="booking-scene" [class.active]="demo.step() === 0">
               <strong class="booking-scene-title">Servicios disponibles</strong>
               <div class="mock-service-row booking-chosen">
                 <span class="mock-service-icon">✦</span>
@@ -119,7 +128,7 @@
               </div>
             </div>
 
-            <div class="booking-scene">
+            <div class="booking-scene" [class.active]="demo.step() === 1">
               <strong class="booking-scene-title">Horarios disponibles</strong>
               <div class="booking-date">
                 <strong>Viernes</strong>
@@ -133,7 +142,7 @@
               </div>
             </div>
 
-            <div class="booking-scene booking-success">
+            <div class="booking-scene booking-success" [class.active]="demo.step() === 2">
               <span class="booking-check">✓</span>
               <strong class="booking-scene-title">Reserva confirmada</strong>
               <p>Sesión de bienestar</p>
@@ -324,9 +333,14 @@
               [alt]="'Foto de ' + business.name"
             />
           } @else {
-            <span>
-              {{ business.name.charAt(0) }}
-            </span>
+            <div class="business-art"
+              [class.business-art-beauty]="business.category === 'BEAUTY'"
+              [class.business-art-wellness]="business.category === 'WELLNESS'"
+              aria-hidden="true">
+              <div class="business-art-mark">
+                <span class="business-art-glyph"></span>
+              </div>
+            </div>
           }
 
         </div>

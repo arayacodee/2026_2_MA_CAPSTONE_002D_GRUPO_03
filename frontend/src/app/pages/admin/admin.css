@@ -402,7 +402,8 @@ textarea {
 }
 
 .record-toggle[aria-expanded='true'] .record-chevron,
-.business-toggle[aria-expanded='true'] .record-chevron {
+.business-toggle[aria-expanded='true'] .record-chevron,
+.record-data[open] .record-chevron {
   margin-top: 3px;
   transform: rotate(225deg);
 }
@@ -429,28 +430,75 @@ button.danger:not(:disabled):hover {
   background: #fff0f2;
 }
 
-details {
-  color: var(--admin-muted);
-  font-size: 13px;
+.record-data {
+  min-width: 0;
+  border: 1px solid var(--admin-line);
+  border-radius: var(--radius-small);
+  background: #fff;
 }
 
-summary {
-  width: fit-content;
-  padding-block: 6px;
+.record-data > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 14px;
+  border-radius: inherit;
+  list-style: none;
   color: var(--admin-blue);
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 650;
   cursor: pointer;
 }
 
-pre {
-  max-height: 300px;
-  margin-bottom: 0;
-  padding: 12px;
-  overflow: auto;
-  border: 1px solid var(--admin-line);
+.record-data > summary::-webkit-details-marker {
+  display: none;
+}
+
+.record-data > summary:hover,
+.record-data[open] > summary {
+  background: var(--admin-selected);
+}
+
+.record-data[open] > summary {
+  border-radius: var(--radius-small) var(--radius-small) 0 0;
+  border-bottom: 1px solid var(--admin-line);
+}
+
+.record-data-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 14px;
+}
+
+.record-data-grid > div {
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid #e8edf4;
   border-radius: 10px;
-  background: #f5f7fb;
-  font-size: 12px;
+  background: #f8faff;
+}
+
+.record-data-grid dt {
+  color: #59677d;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.055em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.record-data-grid dd {
+  margin: 5px 0 0;
+  color: var(--admin-ink);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
 }
 
 .create-record {

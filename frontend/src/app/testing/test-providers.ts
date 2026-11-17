@@ -16,6 +16,7 @@ export function testProviders() {
     } },
     { provide: AuthService, useValue: {
       currentUser: signal(null), isClient: () => false, isProfessional: () => false, isSuperadmin: () => false,
+      managesCompany: () => false,
       isLoggedIn: () => false, logout: () => of(undefined)
     } }
   ];

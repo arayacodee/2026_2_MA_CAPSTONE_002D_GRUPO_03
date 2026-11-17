@@ -80,72 +80,39 @@
       </section>
     }
 
-    <section class="content-section">
+    <section class="services-section" aria-labelledby="services-title">
+      <h2 id="services-title">{{ labels().services }}</h2>
 
-      <div class="section-title">
-        <div>
-          <p class="eyebrow">
-            {{ labels().services }}
-          </p>
-
-          <h2>
-            Reserva lo que necesitas.
-          </h2>
+      @if (services().length) {
+        <div class="services-grid">
+          @for (service of services(); track service.id) {
+            <article class="service-card">
+              <div class="service-card-body">
+                <span class="service-duration">
+                  <span class="duration-icon" aria-hidden="true"></span>
+                  {{ service.durationMin }} min
+                </span>
+                <h3>{{ service.name }}</h3>
+                @if (service.description) {
+                  <p>{{ service.description }}</p>
+                }
+              </div>
+              <div class="service-card-footer">
+                <strong class="service-price">{{ formatPrice(service.price) }}</strong>
+                <a class="service-book"
+                  [routerLink]="['/booking', service.id]"
+                  [attr.aria-label]="labels().reserve + ' · ' + service.name">
+                  {{ labels().reserve }} <span aria-hidden="true">→</span>
+                </a>
+              </div>
+            </article>
+          }
         </div>
-      </div>
-
-      @if (services().length === 0) {
+      } @else if (!loading() && !errorMessage()) {
         <div class="empty-state">
           Actualmente no hay {{ labels().services.toLowerCase() }} disponibles.
         </div>
       }
-
-      <div class="services-list">
-
-        @for (
-          service of services();
-          track service.id
-        ) {
-          <article class="service">
-
-            <div class="service-info">
-              <h3>
-                {{ service.name }}
-              </h3>
-
-              @if (service.description) {
-                <p>
-                  {{ service.description }}
-                </p>
-              }
-
-              <span>
-                {{ service.durationMin }} min
-              </span>
-            </div>
-
-            <div class="service-action">
-
-              <strong>
-                ${{ service.price }}
-              </strong>
-
-              <a
-                [routerLink]="[
-                  '/booking',
-                  service.id
-                ]"
-              >
-                {{ labels().reserve }}
-              </a>
-
-            </div>
-
-          </article>
-        }
-
-      </div>
-
     </section>
 
     <app-business-gallery [businessId]="currentBusiness.id" />
