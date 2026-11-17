@@ -14,6 +14,8 @@ import { BusinessGallery } from '../../components/business-gallery';
   styleUrl: './business.css'
 })
 export class Business implements OnInit {
+  private readonly servicePrice = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' });
+
   readonly labels = computed(() => businessLabels(this.business()?.category));
   readonly mode = computed(() => attentionModes.find(item => item.value === this.business()?.attentionMode)?.label ?? '');
   business = signal<BusinessModel | null>(null);
@@ -25,6 +27,10 @@ export class Business implements OnInit {
     private readonly route: ActivatedRoute,
     private readonly api: ApiService
   ) {}
+
+  formatPrice(price: Service['price']): string {
+    return this.servicePrice.format(Number(price));
+  }
 
   ngOnInit(): void {
     const businessId = this.route.snapshot.paramMap.get('id');

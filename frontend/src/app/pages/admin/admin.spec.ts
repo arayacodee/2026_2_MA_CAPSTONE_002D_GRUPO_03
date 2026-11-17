@@ -10,6 +10,39 @@ describe('Administración', () => {
     http = TestBed.inject(HttpTestingController);
   });
   afterEach(() => http.verify());
+  it('muestra una ficha de usuario con etiquetas y solo los campos previstos', () => {
+    const fixture = TestBed.createComponent(Admin);
+    const user = {
+      id: 'client',
+      name: 'Cliente de Prueba',
+      email: 'cliente@example.invalid',
+      role: 'CLIENT',
+      createdAt: '2026-11-17T14:52:19.958Z',
+      internalNote: 'Dato interno',
+    };
+    http.expectOne(req => req.url.endsWith('/admin/users')).flush({ items: [user], hasMore: false });
+    fixture.componentInstance.toggleRecord(user);
+    fixture.detectChanges();
+
+    const root: HTMLElement = fixture.nativeElement;
+    const details = root.querySelector<HTMLDetailsElement>('.record-data')!;
+    details.querySelector('summary')!.click();
+    const fields = Object.fromEntries(Array.from(details.querySelectorAll('dl > div'), item => [
+      item.querySelector('dt')?.textContent?.trim(),
+      item.querySelector('dd')?.textContent?.trim(),
+    ]));
+    expect(details.open).toBe(true);
+    expect(fields).toMatchObject({
+      'Nombre': user.name,
+      'Correo electrónico': user.email,
+      'Rol': 'Cliente',
+      'ID del registro': user.id,
+    });
+    expect(fields['Fecha de creación']).toBeTruthy();
+    expect(fields['Fecha de creación']).not.toBe(user.createdAt);
+    expect(details.textContent).not.toContain(user.internalNote);
+    expect(details.querySelector('pre')).toBeNull();
+  });
   it('solicita confirmación sin borrar y solo envía DELETE al confirmar', () => {
     const fixture = TestBed.createComponent(Admin);
     const admin = fixture.componentInstance;

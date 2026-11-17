@@ -242,9 +242,16 @@
                       </section>
                     }
 
-                    <details>
-                      <summary>Ver todos los datos</summary>
-                      <pre>{{ record | json }}</pre>
+                    <details class="record-data">
+                      <summary>Datos del registro <span class="record-chevron" aria-hidden="true"></span></summary>
+                      <dl class="record-data-grid">
+                        @for (field of recordFields(section().key, record); track field.label) {
+                          <div>
+                            <dt>{{ field.label }}</dt>
+                            <dd>{{ field.value }}</dd>
+                          </div>
+                        }
+                      </dl>
                     </details>
                   </div>
                 }

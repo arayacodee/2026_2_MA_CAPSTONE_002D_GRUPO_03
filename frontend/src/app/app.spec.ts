@@ -19,7 +19,7 @@ describe('App', () => {
   it('muestra Resumen para profesionales y lo dirige al historial', () => {
     TestBed.overrideProvider(AuthService, { useValue: {
       currentUser: signal({ name: 'Profesional' }), isProfessional: () => true,
-      isClient: () => false, isSuperadmin: () => false,
+      isClient: () => false, isSuperadmin: () => false, managesCompany: () => true,
     } });
     const fixture = TestBed.createComponent(App); fixture.detectChanges();
     const summary = fixture.nativeElement.querySelector('nav a[href="/dashboard/history"]');
@@ -33,7 +33,7 @@ describe('App', () => {
   it('permite abrir el perfil desde el correo cuando la cuenta no tiene nombre', () => {
     TestBed.overrideProvider(AuthService, { useValue: {
       currentUser: signal({ name: null, email: 'cliente@ejemplo.cl' }), isProfessional: () => false,
-      isClient: () => true, isSuperadmin: () => false,
+      isClient: () => true, isSuperadmin: () => false, managesCompany: () => false,
     } });
     const fixture = TestBed.createComponent(App); fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('.account-name').textContent.trim()).toBe('cliente@ejemplo.cl');

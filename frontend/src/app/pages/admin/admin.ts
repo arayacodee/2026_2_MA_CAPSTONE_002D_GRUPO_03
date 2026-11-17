@@ -1,22 +1,23 @@
 import { afterNextRender, Component, computed, DestroyRef, ElementRef, inject, Injector, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { JsonPipe, NgTemplateOutlet } from '@angular/common';
+import { NgTemplateOutlet } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Subscription } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { businessCategories, attentionModes } from '../../models/business-category';
-import { AdminRecord, AdminSectionKey, adminSearchKey, describeAdminRecord } from './admin-record-summary';
+import { AdminRecord, AdminSectionKey, adminRecordFields, adminSearchKey, describeAdminRecord } from './admin-record-summary';
 
 interface Field { key: string; label: string; type: 'text' | 'number' | 'time' | 'checkbox' | 'textarea' | 'role' | 'category' | 'mode'; }
 interface Section { key: AdminSectionKey; label: string; fields: Field[]; }
 interface AdminPage { items: AdminRecord[]; hasMore: boolean; }
 const field = (key: string, label: string, type: Field['type'] = 'text'): Field => ({ key, label, type });
 
-@Component({ selector: 'app-admin', imports: [FormsModule, JsonPipe, NgTemplateOutlet], templateUrl: './admin.html', styleUrl: './admin.css' })
+@Component({ selector: 'app-admin', imports: [FormsModule, NgTemplateOutlet], templateUrl: './admin.html', styleUrl: './admin.css' })
 export class Admin {
   readonly categories = businessCategories;
   readonly modes = attentionModes;
+  readonly recordFields = adminRecordFields;
   private readonly injector = inject(Injector);
   private readonly editor = viewChild<ElementRef<HTMLElement>>('editor');
   private readonly sectionTitle = viewChild<ElementRef<HTMLHeadingElement>>('sectionTitle');
