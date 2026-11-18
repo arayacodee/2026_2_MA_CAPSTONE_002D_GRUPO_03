@@ -104,6 +104,7 @@ describe('Administración', () => {
     const fixture = TestBed.createComponent(Admin);
     const admin = fixture.componentInstance;
     const users = http.expectOne(req => req.url.endsWith('/admin/users'));
+    expect(users.request.params.get('limit')).toBe('20');
     fixture.detectChanges();
     const root: HTMLElement = fixture.nativeElement;
     const services = Array.from(root.querySelectorAll<HTMLButtonElement>('.section-nav button'))
