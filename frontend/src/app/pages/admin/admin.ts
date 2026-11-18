@@ -28,6 +28,7 @@ export class Admin {
   private businessRequest?: Subscription;
   private editorTrigger?: HTMLElement;
   private readonly base = `${environment.apiUrl.replace(/\/$/, '')}/api/admin`;
+  private readonly pageSize = 20;
   private readonly businessPageSize = 10;
   readonly sections: Section[] = [
     { key: 'users', label: 'Usuarios', fields: [field('name', 'Nombre'), field('role', 'Rol', 'role')] },
@@ -181,7 +182,7 @@ export class Admin {
     this.records.set([]);
     const params: Record<string, string | number> = business
       ? { page: this.page(), limit: this.businessPageSize, businessId: business.id }
-      : { page: this.page() };
+      : { page: this.page(), limit: this.pageSize };
     this.listRequest = this.http.get<AdminPage>(
       `${this.base}/${this.section().key}`, { params },
     ).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
