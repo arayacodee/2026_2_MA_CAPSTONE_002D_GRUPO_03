@@ -6,7 +6,7 @@
   <p id="attention-dialog-description" class="muted">{{ editing() ? 'Completa las notas y agrega evidencias antes de guardar.' : 'Consulta los datos, notas y evidencias de esta atención.' }}</p>
   <section class="summary" aria-label="Datos de la atención">
     <div><span>Cliente</span><strong>{{ session()?.client?.name || reservation()?.client?.name || session()?.client?.email || reservation()?.client?.email || 'Cliente' }}</strong></div>
-    <div><span>Servicio</span><strong>{{ reservation()?.service?.name || 'Servicio' }}</strong></div>
+    <div><span>Servicio</span><strong>{{ reservation()?.bookedServiceName || reservation()?.service?.name || 'Servicio' }}</strong></div>
     @if (session()?.occurredAt || reservation()?.startsAt; as date) { <div><span>Fecha y hora</span><strong>{{ formatDate(date) }}</strong></div> }
     <div><span>{{ session() ? 'Valor registrado' : 'Valor del servicio' }}</span><strong>{{ formatPrice(session() ? session()?.amount : reservation()?.service?.price) }}</strong></div>
   </section>
@@ -17,7 +17,12 @@
   @if (session()?.evidences?.length) {
     <h3>Evidencias</h3><div class="evidences">
       @for (evidence of session()?.evidences; track evidence.id) {
-        <figure><a [href]="evidence.imageUrl" target="_blank" rel="noopener noreferrer"><img [src]="evidence.imageUrl" [alt]="evidence.caption || 'Evidencia de atención'" loading="lazy"></a>
+        <figure>
+          @if (evidence.imageUrl; as url) {
+            <a [href]="url" target="_blank" rel="noopener noreferrer"><img [src]="url" [alt]="evidence.caption || 'Evidencia de atención'" loading="lazy"></a>
+          } @else {
+            <p>Imagen temporalmente no disponible.</p>
+          }
           @if (evidence.caption) { <figcaption>{{ evidence.caption }}</figcaption> }
           @if (editing()) { <button type="button" [disabled]="busy()" (click)="removeEvidence(evidence)">Eliminar imagen</button> }
         </figure>

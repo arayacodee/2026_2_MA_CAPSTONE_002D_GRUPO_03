@@ -163,5 +163,22 @@
 
       </div>
     </section>
+    <section class="schedule-section">
+      <div class="section-heading">
+        <h2>Fechas bloqueadas</h2>
+        <p>Las reservas existentes se mantienen. Los clientes no podrán pedir horas nuevas en estas fechas.</p>
+      </div>
+      <form class="availability-form" (submit)="$event.preventDefault(); changeBlockedDay(day.value, reason.value)">
+        <label>Fecha <input #day type="date" required /></label>
+        <label>Motivo opcional <input #reason maxlength="160" /></label>
+        <button type="submit" class="primary-button" [disabled]="changingBlockedDay()">Bloquear fecha</button>
+      </form>
+      @for (blocked of blockedDays(); track blocked.day) {
+        <article class="availability-card">
+          <div><strong>{{ blocked.day }}</strong>@if (blocked.reason) { <p>{{ blocked.reason }}</p> }</div>
+          <button type="button" class="delete-button" [disabled]="changingBlockedDay()" (click)="changeBlockedDay(blocked.day)">Habilitar fecha</button>
+        </article>
+      }
+    </section>
   }
 </main>

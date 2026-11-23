@@ -1,10 +1,27 @@
 import { prisma } from './prisma.js';
 import { mpRequest, validPlan, invoicePeriodEnd, type MPSubscription, type MPInvoice } from './mercado-pago.js';
+import type { Prisma } from '../generated/prisma/client.js';
 
-// Existing professional accounts without a billing record keep their access.
+export const bookingOwnerSelect = {
+  role: true,
+  isSuspended: true,
+  accessGrant: true,
+  subscriptions: { select: { paidUntil: true }, where: { paidUntil: { not: null } } },
+} satisfies Prisma.UserSelect;
+
+export function canReceiveBookings(business: {
+  isArchived: boolean;
+  owner: Prisma.UserGetPayload<{ select: typeof bookingOwnerSelect }>;
+}): boolean {
+  const { owner } = business;
+  if (business.isArchived || owner.isSuspended || owner.role !== 'PROFESSIONAL') return false;
+  return Boolean(owner.accessGrant) ||
+    owner.subscriptions.some(record => record.paidUntil && record.paidUntil > new Date());
+}
+
 export async function hasProfessionalAccess(userId: string): Promise<boolean> {
-  const records = await prisma.professionalSubscription.findMany({ where: { userId }, select: { paidUntil: true } });
-  return records.length === 0 || records.some(record => record.paidUntil && record.paidUntil > new Date());
+  const owner = await prisma.user.findUnique({ where: { id: userId }, select: bookingOwnerSelect });
+  return Boolean(owner && canReceiveBookings({ isArchived: false, owner }));
 }
 
 export async function syncSubscription(providerId: string) {

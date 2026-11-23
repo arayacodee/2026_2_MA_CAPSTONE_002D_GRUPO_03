@@ -13,7 +13,7 @@ import {
   RouterLink
 } from '@angular/router';
 
-import { forkJoin, interval } from 'rxjs';
+import { EMPTY, Subject, catchError, exhaustMap, finalize, forkJoin, interval, map, startWith, switchMap, timeout, timer } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { ApiService } from '../../core/services/api.service';
@@ -37,6 +37,11 @@ export class ProfessionalDashboard implements OnInit {
   readonly labels = computed(() => businessLabels(this.business()?.category));
   private readonly destroyRef = inject(DestroyRef);
   readonly now = signal(new Date());
+  private readonly refreshAgenda = new Subject<void>();
+  readonly refreshingAgenda = signal(false);
+  readonly agendaError = signal('');
+  readonly editingReservation = signal<string | null>(null);
+  readonly changingReservation = signal(false);
 
   professional = signal<User | null>(null);
   business = signal<Business | null>(null);
@@ -79,7 +84,7 @@ export class ProfessionalDashboard implements OnInit {
 
     // /businesses/me obtiene el perfil asociado
     // directamente al usuario autenticado.
-    this.api.getMyBusiness().subscribe({
+    this.api.getMyBusiness().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (business) => {
         this.business.set(business);
 
@@ -100,7 +105,7 @@ export class ProfessionalDashboard implements OnInit {
         console.error(error);
 
         this.errorMessage.set(
-          'No fue posible cargar el dashboard.'
+          'No fue posible cargar el panel profesional.'
         );
 
         this.loading.set(false);
@@ -126,7 +131,7 @@ export class ProfessionalDashboard implements OnInit {
         this.api.getReservationsByBusiness(
           businessId
         )
-    }).subscribe({
+    }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: ({
         services,
         availabilities,
@@ -157,6 +162,7 @@ export class ProfessionalDashboard implements OnInit {
         );
 
         this.loading.set(false);
+        this.watchAgenda(businessId);
       },
 
       error: (error) => {
@@ -171,6 +177,65 @@ export class ProfessionalDashboard implements OnInit {
     });
   }
 
+  private watchAgenda(businessId: string): void {
+    this.refreshAgenda.pipe(
+      map(() => 0),
+      startWith(5_000),
+      switchMap(delay => timer(delay, 5_000).pipe(exhaustMap(() => {
+        this.refreshingAgenda.set(true);
+        return this.api.getReservationsByBusiness(businessId).pipe(
+          timeout(12_000),
+          catchError(() => {
+            this.agendaError.set('No pudimos actualizar la agenda. Mostramos la última información disponible.');
+            return EMPTY;
+          }),
+          finalize(() => this.refreshingAgenda.set(false)),
+        );
+      }))),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe(reservations => {
+      this.reservations.set(reservations);
+      this.agendaError.set('');
+    });
+  }
+
+  refreshReservations(): void {
+    this.refreshAgenda.next();
+  }
+
+  reprogram(event: Event, id: string, day: string, time: string): void {
+    event.preventDefault();
+    if (!day || !time) return;
+    this.changeReservation(this.api.rescheduleReservation(id, day, time), 'Reserva reprogramada.');
+  }
+
+  markNoShow(id: string): void {
+    this.changeReservation(this.api.markNoShow(id), 'Inasistencia registrada.');
+  }
+
+  private changeReservation(request: ReturnType<ApiService['markNoShow']>, message: string): void {
+    if (this.changingReservation()) return;
+    this.changingReservation.set(true);
+    this.errorMessage.set('');
+    this.successMessage.set('');
+    request.pipe(
+      finalize(() => this.changingReservation.set(false)),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe({
+      next: reservation => {
+        this.reservations.update(items => items.map(item => item.id === reservation.id ? reservation : item));
+        this.editingReservation.set(null);
+        this.successMessage.set(message);
+        this.refreshReservations();
+      },
+      error: err => this.errorMessage.set(err?.error?.error ?? 'No fue posible actualizar la reserva.'),
+    });
+  }
+
+  canMarkNoShow(reservation: Reservation): boolean {
+    return new Date(reservation.endsAt) <= this.now();
+  }
+
   completeReservation(reservationId: string): void {
     this.successMessage.set('');
     this.errorMessage.set('');
@@ -180,6 +245,7 @@ export class ProfessionalDashboard implements OnInit {
 
   attentionChanged(session: ClientSession): void {
     this.reservations.update(items => items.map(item => item.id === session.reservationId ? { ...item, status: 'COMPLETED' } : item));
+    this.refreshReservations();
   }
 
   activeServicesCount(): number {
@@ -215,6 +281,11 @@ export class ProfessionalDashboard implements OnInit {
           new Date(b.startsAt).getTime()
       );
   });
+
+  readonly closedReservations = computed(() => this.reservations()
+    .filter(item => item.status === 'NO_SHOW' || item.status === 'CANCELLED')
+    .sort((a, b) => b.startsAt.localeCompare(a.startsAt))
+    .slice(0, 10));
 
   pendingAttentionReservations =
     computed(() => {

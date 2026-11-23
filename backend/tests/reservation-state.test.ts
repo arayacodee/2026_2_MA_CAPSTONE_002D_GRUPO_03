@@ -4,7 +4,7 @@ import { cancelSafely, completeSafely, ReservationConflict } from '../src/lib/re
 import type { Prisma } from '../src/generated/prisma/client.js';
 
 function transaction(status = 'CONFIRMED', future = false) {
-  const reservation = { id: 'reservation', status, businessId: 'business', clientId: 'client', startsAt: new Date(Date.now() + (future ? 60_000 : -60_000)), service: { price: '15000' } };
+  const reservation = { id: 'reservation', status, businessId: 'business', clientId: 'client', startsAt: new Date(Date.now() + (future ? 60_000 : -60_000)), bookedPrice: '15000', service: { price: '15000' } };
   let session: any = status === 'COMPLETED' ? { id: 'existing' } : null;
   let creations = 0;
   const tx = {
@@ -37,8 +37,8 @@ test('cancelar dos veces es idempotente', async () => {
 });
 test('completar dos veces conserva una única atención y el precio original aunque cambie la tarifa', async () => {
   const state = transaction();
-  const first = await completeSafely(state.tx, 'reservation', 'Nota');
   state.reservation.service.price = '20000';
+  const first = await completeSafely(state.tx, 'reservation', 'Nota');
   const second = await completeSafely(state.tx, 'reservation', 'Otra nota');
   assert.equal(first.session.id, second.session.id);
   assert.equal(state.creations(), 1);

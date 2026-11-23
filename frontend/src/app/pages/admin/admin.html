@@ -27,7 +27,7 @@
             </button>
             @if (section().key === 'users') {
               <button #createButton type="button" class="primary" [disabled]="loading() || saving()" (click)="newUser(createButton)">
-                Habilitar usuario
+                Crear usuario
               </button>
             }
           </div>
@@ -41,23 +41,20 @@
 
       <ng-template #recordToolbar>
         <div class="record-toolbar">
-          <div class="search-field">
-            <label for="admin-search">Buscar en esta página</label>
+          <form class="search-field" (ngSubmit)="applySearch()">
+            <label for="admin-search">{{ grouped() ? 'Buscar registros de este negocio' : 'Buscar en toda la sección' }}</label>
             <div class="search-controls">
-              <input #searchInput id="admin-search" type="search" [value]="search()" [disabled]="saving()"
+              <input #searchInput id="admin-search" type="search" maxlength="120" [value]="search()" [disabled]="saving()"
                 (input)="search.set(searchInput.value)" />
+              <button type="submit" [disabled]="saving()">Buscar</button>
               @if (search()) {
-                <button type="button" [disabled]="saving()" (click)="search.set(''); searchInput.focus()">Limpiar</button>
+                <button type="button" [disabled]="saving()" (click)="applySearch(''); searchInput.focus()">Limpiar</button>
               }
             </div>
-          </div>
+          </form>
           @if (!loading() && !loadError()) {
             <p class="result-count" role="status">
-              @if (visibleRows().length !== records().length) {
-                {{ visibleRows().length }} de {{ records().length }} registros
-              } @else {
-                {{ records().length }} {{ records().length === 1 ? 'registro' : 'registros' }}
-              }
+              {{ records().length }} {{ records().length === 1 ? 'registro' : 'registros' }} en esta página
             </p>
           }
         </div>
@@ -65,14 +62,17 @@
 
       @if (message()) { <p class="notice success" role="status">{{ message() }}</p> }
       @if (warning()) { <p class="notice warning" role="status">{{ warning() }}</p> }
-      @if (error() && !creating() && !selected() && !passwordUser() && !deleting()) {
+      @if (error() && !creating() && !selected() && !passwordUser() && !deleting() && !settingState()) {
         <p class="notice error" role="alert">{{ error() }}</p>
       }
 
       <ng-template #editorForm>
         <form #editor (ngSubmit)="save()" class="editor">
           <header>
-            <h3>{{ creating() ? 'Habilitar cuenta con Google' : 'Editar datos' }}</h3>
+            <h3>{{ creating() ? 'Crear cuenta' : 'Editar datos' }}</h3>
+            @if (creating()) {
+              <p>Podrá ingresar con Google o con una contraseña que configures después.</p>
+            }
             @if (selected(); as record) {
               <p>{{ title(record) }}</p>
             }
@@ -80,7 +80,7 @@
           <div class="form-grid">
             @if (creating()) {
               <div class="form-field full-field">
-                <label for="admin-email">Correo de Google</label>
+                <label for="admin-email">Correo electrónico</label>
                 <input id="admin-email" name="email" type="email" required [(ngModel)]="draft['email']" [disabled]="saving()" />
               </div>
             }
@@ -154,7 +154,7 @@
           </div>
         } @else {
           <div class="records">
-            @for (row of visibleRows(); track row.record.id) {
+            @for (row of rows(); track row.record.id) {
               @let record = row.record;
               @let isOpen = expandedId() === record.id;
               <article class="record" [class.open]="isOpen">
@@ -179,7 +179,7 @@
                 @if (isOpen) {
                   <div class="record-details" [id]="'admin-record-' + record.id">
                     <div class="actions record-actions">
-                      @if (section().fields.length) {
+                      @if (section().fields.length && record['role'] !== 'SUPERADMIN') {
                         <button #editButton type="button" [disabled]="saving()" (click)="edit(record, editButton)">Editar</button>
                       }
                       @if (section().key === 'users' && record['role'] !== 'SUPERADMIN') {
@@ -196,7 +196,10 @@
                           Abrir imagen <span aria-hidden="true">↗</span>
                         </a>
                       }
-                      @if (record['role'] !== 'SUPERADMIN') {
+                      @if (stateActionLabel(record); as actionLabel) {
+                        <button #stateButton type="button" [disabled]="saving()" (click)="requestStateChange(record, stateButton)">{{ actionLabel }}</button>
+                      }
+                      @if (record['role'] !== 'SUPERADMIN' && deletionEffects[section().key]) {
                         <button #deleteButton type="button" class="danger delete-button" [disabled]="saving()"
                           (click)="requestDeletion(record, deleteButton)">Eliminar</button>
                       }
@@ -227,11 +230,27 @@
                         </div>
                       </form>
                     }
+                    @if (settingState()?.id === record.id) {
+                      <form #editor class="editor" (ngSubmit)="saveState()">
+                        <header><h3>{{ stateActionLabel(record) }}</h3><p>{{ row.title }}</p></header>
+                        <label class="form-field">Motivo
+                          <input name="reason" [(ngModel)]="reason" required minlength="3" maxlength="300" [disabled]="saving()" />
+                        </label>
+                        @if (error()) { <p class="notice error" role="alert">{{ error() }}</p> }
+                        <div class="actions">
+                          <button type="submit" class="primary" [disabled]="saving()">Confirmar cambio</button>
+                          <button type="button" [disabled]="saving()" (click)="dismissEditor()">Cancelar</button>
+                        </div>
+                      </form>
+                    }
                     @if (deleting()?.id === record.id) {
                       <section #editor class="delete-confirmation" aria-label="Confirmar eliminación">
                         <h4>Eliminar {{ row.title }}</h4>
                         <p>{{ deletionEffects[section().key] }}</p>
                         <p><strong>Esta eliminación es permanente y no se puede deshacer.</strong></p>
+                        <label class="form-field">Motivo
+                          <input name="deleteReason" [(ngModel)]="reason" maxlength="300" [disabled]="saving()" />
+                        </label>
                         @if (error()) { <p class="notice error" role="alert">{{ error() }}</p> }
                         <div class="actions">
                           <button type="button" class="cancel-deletion" [disabled]="saving()" (click)="dismissEditor()">Conservar registro</button>
@@ -258,7 +277,7 @@
               </article>
             } @empty {
               <p class="list-state">
-                {{ search().trim() ? 'No se encontraron coincidencias en esta página.' : grouped() ? 'No hay registros de este negocio.' : 'No hay registros en esta sección.' }}
+                {{ appliedSearch() ? 'No se encontraron coincidencias.' : grouped() ? 'No hay registros de este negocio.' : 'No hay registros en esta sección.' }}
               </p>
             }
           </div>

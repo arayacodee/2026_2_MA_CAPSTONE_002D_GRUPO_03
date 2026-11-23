@@ -41,7 +41,7 @@ header h1 {
 }
 
 .reservation-card.cancelled {
-  opacity: 0.6;
+  background: #f5f6f8;
 }
 
 .reservation-info {
@@ -80,7 +80,8 @@ header h1 {
 }
 
 .status-cancelled {
-  background: #eeeeee;
+  background: #e8ebef;
+  color: #354358;
 }
 
 .cancel-button {

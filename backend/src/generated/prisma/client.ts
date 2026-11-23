@@ -87,6 +87,21 @@ export type Availability = Prisma.AvailabilityModel
  */
 export type Reservation = Prisma.ReservationModel
 /**
+ * Model ScheduleException
+ *
+ */
+export type ScheduleException = Prisma.ScheduleExceptionModel
+/**
+ * Model ReservationChange
+ *
+ */
+export type ReservationChange = Prisma.ReservationChangeModel
+/**
+ * Model AdminAction
+ *
+ */
+export type AdminAction = Prisma.AdminActionModel
+/**
  * Model ClientSession
  *
  */

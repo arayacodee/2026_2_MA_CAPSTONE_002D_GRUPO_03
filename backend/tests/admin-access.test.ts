@@ -14,7 +14,8 @@ const { default: routes } = await import('../src/routes/admin.routes.js');
 const { createSessionToken } = await import('../src/lib/session.js');
 
 test('administración exige superadmin, consulta global y bloquea escalamiento y cambios de identidad', async () => {
-  const originals = { user: prisma.user.findUnique, users: prisma.user.findMany, business: prisma.business.findMany, update: prisma.user.updateMany };
+  const originals = { user: prisma.user.findUnique, users: prisma.user.findMany, business: prisma.business.findMany, update: prisma.user.updateMany, transaction: prisma.$transaction };
+  prisma.$transaction = (async (callback: any) => callback({ user: prisma.user, business: prisma.business, adminAction: { create: async () => ({}) } })) as any;
   let role: 'CLIENT' | 'PROFESSIONAL' | 'SUPERADMIN' = 'CLIENT';
   let businessQuery: any;
   let writes = 0;
@@ -67,7 +68,7 @@ test('administración exige superadmin, consulta global y bloquea escalamiento y
     assert.equal((await fetch(`${url}/users?page=0`, { headers: { cookie } })).status, 400);
   } finally {
     prisma.user.findUnique = originals.user; prisma.user.findMany = originals.users;
-    prisma.business.findMany = originals.business; prisma.user.updateMany = originals.update;
+    prisma.business.findMany = originals.business; prisma.user.updateMany = originals.update; prisma.$transaction = originals.transaction;
     await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
   }
 });
@@ -118,7 +119,8 @@ test('pagina los negocios por módulo y filtra los registros antes de paginarlos
     ]) {
       const response = await get(path);
       assert.equal(response.status, 200);
-      assert.deepEqual(await response.json(), { items: rows.slice(0, 2), hasMore: true });
+      const items = path.startsWith('evidences?') ? rows.slice(0, 2).map(row => ({ ...row, imageUrl: null })) : rows.slice(0, 2);
+      assert.deepEqual(await response.json(), { items, hasMore: true });
     }
     assert.equal((await get('services?businessId=invalid')).status, 400);
     assert.equal((await get(`users?businessId=${businessId}`)).status, 400);

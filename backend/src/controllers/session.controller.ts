@@ -5,6 +5,7 @@ import { prisma } from "../lib/prisma.js";
 import { cloudinary } from "../lib/cloudinary.js";
 import { uploadImageBuffer } from "../lib/cloudinary-upload.js";
 import { attentionMetrics, localDay, monthEnvelope } from "../lib/attention-metrics.js";
+import { evidenceForRead } from '../lib/evidence-media.js';
 
 const monthQuerySchema = z.object({ month: z.string().regex(/^[1-9]\d{3}-(0[1-9]|1[0-2])$/).optional() });
 const querySchema = monthQuerySchema.extend({
@@ -48,7 +49,9 @@ export async function getSessions(req: Request, res: Response) {
     cursor = sessions.length > limit ? sessions.at(-1)?.id : undefined;
   } while (cursor && matches.length <= limit);
 
-  const items = matches.slice(0, limit);
+  const items = matches.slice(0, limit).map(session => ({
+    ...session, evidences: session.evidences.map(evidenceForRead),
+  }));
   return res.json({ items, nextCursor: matches.length > limit ? items.at(-1)!.id : null });
 }
 
@@ -85,16 +88,16 @@ export async function addEvidence(req: Request<{ id: string }>, res: Response) {
   if (!session) return res.status(404).json({ error: "Atención no encontrada." });
   const uploaded = await uploadImageBuffer(req.file.buffer, {
     folder: `cronos/businesses/${session.businessId}/sessions/${session.id}`,
-    public_id: randomUUID(), resource_type: "image",
+    public_id: randomUUID(), resource_type: "image", type: 'authenticated',
   });
   try {
     const evidence = await prisma.sessionEvidence.create({ data: {
       sessionId: session.id, imageUrl: uploaded.secure_url,
-      imagePublicId: uploaded.public_id, caption: parsed.data.caption || null,
+      imagePublicId: uploaded.public_id, deliveryType: 'authenticated', caption: parsed.data.caption || null,
     } });
-    return res.status(201).json(evidence);
+    return res.status(201).json(evidenceForRead(evidence));
   } catch (error) {
-    await cloudinary.uploader.destroy(uploaded.public_id).catch(cleanupError => console.error("Evidence cleanup failed", cleanupError));
+    await cloudinary.uploader.destroy(uploaded.public_id, { type: 'authenticated' }).catch(cleanupError => console.error("Evidence cleanup failed", cleanupError));
     throw error;
   }
 }
@@ -105,7 +108,7 @@ export async function deleteEvidence(req: Request<{ id: string }>, res: Response
     where: { id: req.params.id, session: { business: { ownerId: req.authUser!.id } } },
   });
   if (!evidence) return res.status(404).json({ error: "Evidencia no encontrada." });
-  const result = await cloudinary.uploader.destroy(evidence.imagePublicId, { invalidate: true });
+  const result = await cloudinary.uploader.destroy(evidence.imagePublicId, { invalidate: true, type: evidence.deliveryType });
   if (!["ok", "not found"].includes(result.result)) throw new Error("Cloudinary deletion failed");
   await prisma.sessionEvidence.deleteMany({ where: { id: evidence.id } });
   return res.status(204).send();

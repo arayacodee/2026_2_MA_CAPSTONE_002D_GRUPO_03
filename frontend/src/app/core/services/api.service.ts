@@ -199,6 +199,25 @@ export class ApiService {
       `${this.baseUrl}/api/reservations`
     );
   }
+  markNoShow(id: string): Observable<Reservation> {
+    return this.http.patch<Reservation>(`${this.baseUrl}/api/reservations/${id}/no-show`, {});
+  }
+
+  rescheduleReservation(id: string, day: string, time: string): Observable<Reservation> {
+    return this.http.patch<Reservation>(`${this.baseUrl}/api/reservations/${id}/reschedule`, { day, time });
+  }
+
+  getBlockedDays() {
+    return this.http.get<{ day: string; reason: string | null }[]>(`${this.baseUrl}/api/availabilities/blocked-days`);
+  }
+
+  blockDay(day: string, reason: string) {
+    return this.http.post<{ day: string; reason: string | null }>(`${this.baseUrl}/api/availabilities/blocked-days`, { day, reason });
+  }
+
+  unblockDay(day: string) {
+    return this.http.delete<void>(`${this.baseUrl}/api/availabilities/blocked-days/${encodeURIComponent(day)}`);
+  }
   getUsers(): Observable<User[]> {
     return this.http.get<User[]>(
       `${this.baseUrl}/api/users`

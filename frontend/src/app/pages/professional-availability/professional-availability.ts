@@ -1,6 +1,7 @@
 import { Component, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { Observable } from 'rxjs';
 import { ApiService } from '../../core/services/api.service';
 import { Business } from '../../models/business.model';
 import { AuthService } from '../../core/services/auth.service';
@@ -25,6 +26,8 @@ export class ProfessionalAvailability implements OnInit {
   loading = signal(true);
   saving = signal(false);
   deletingId = signal<string | null>(null);
+  readonly blockedDays = signal<{ day: string; reason: string | null }[]>([]);
+  readonly changingBlockedDay = signal(false);
 
   errorMessage = signal('');
   successMessage = signal('');
@@ -69,35 +72,49 @@ export class ProfessionalAvailability implements OnInit {
       return;
     }
 
-    this.api.getBusinesses().subscribe({
-      next: (businesses) => {
-        const business = businesses.find(
-          (item) => item.ownerId === professional.id
-        );
-
-        if (!business) {
-          this.errorMessage.set(
-            'El profesional no tiene un negocio.'
-          );
-
-          this.loading.set(false);
-          return;
-        }
-
+    this.api.getMyBusiness().subscribe({
+      next: (business) => {
         this.business.set(business);
 
         this.loadAvailabilities(business.id);
+        this.loadBlockedDays();
       },
 
       error: (error) => {
         console.error(error);
 
         this.errorMessage.set(
-          'No fue posible cargar los datos.'
+          error.status === 404 ? 'Aún no tienes un negocio.' : 'No fue posible cargar los datos.'
         );
 
         this.loading.set(false);
       }
+    });
+  }
+
+  private loadBlockedDays(): void {
+    this.api.getBlockedDays().subscribe({
+      next: days => this.blockedDays.set(days),
+      error: () => this.errorMessage.set('No fue posible cargar las fechas bloqueadas.'),
+    });
+  }
+
+  changeBlockedDay(day: string, reason?: string): void {
+    if (!day || this.changingBlockedDay()) return;
+    this.errorMessage.set('');
+    this.successMessage.set('');
+    this.changingBlockedDay.set(true);
+    const request: Observable<unknown> = reason === undefined ? this.api.unblockDay(day) : this.api.blockDay(day, reason);
+    request.subscribe({
+      next: () => {
+        this.changingBlockedDay.set(false);
+        this.successMessage.set(reason === undefined ? 'Fecha habilitada.' : 'Fecha bloqueada.');
+        this.loadBlockedDays();
+      },
+      error: err => {
+        this.changingBlockedDay.set(false);
+        this.errorMessage.set(err?.error?.error ?? 'No fue posible actualizar la fecha.');
+      },
     });
   }
 

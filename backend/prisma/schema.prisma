@@ -30,6 +30,13 @@ enum ReservationStatus {
   CONFIRMED
   COMPLETED
   CANCELLED
+  NO_SHOW
+}
+
+enum ProfessionalAccessGrant {
+  LEGACY
+  MANUAL
+  DEMO
 }
 
 model User {
@@ -39,6 +46,8 @@ model User {
   role         UserRole
   googleId     String?       @unique
   passwordHash String?
+  isSuspended  Boolean @default(false)
+  accessGrant  ProfessionalAccessGrant?
   firstName    String?
   lastName     String?
   phone        String?
@@ -107,7 +116,8 @@ model Business {
   address        String?
   attentionMode  AttentionMode?
   timezone       String @default("America/Santiago")
-  ownerId        String
+  ownerId        String @unique
+  isArchived     Boolean @default(false)
 
   avatarUrl      String?
   avatarPublicId String?
@@ -119,6 +129,7 @@ model Business {
   availabilities Availability[]
   reservations   Reservation[]
   clientSessions ClientSession[]
+  scheduleExceptions ScheduleException[]
 
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
@@ -175,18 +186,55 @@ model Reservation {
   startsAt    DateTime
   endsAt      DateTime
   status      ReservationStatus @default(CONFIRMED)
+  bookedServiceName String?
+  bookedDurationMin Int?
+  bookedPrice Decimal? @db.Decimal(10, 2)
 
   business    Business          @relation(fields: [businessId], references: [id])
   service     Service           @relation(fields: [serviceId], references: [id])
   client      User              @relation(fields: [clientId], references: [id])
 
   clientSession ClientSession?
+  changes ReservationChange[]
 
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
   @@index([businessId, startsAt])
   @@index([clientId])
+}
+
+model ScheduleException {
+  id String @id @default(uuid())
+  businessId String
+  day String
+  reason String?
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  @@unique([businessId, day])
+}
+
+model ReservationChange {
+  id String @id @default(uuid())
+  reservationId String
+  actorId String
+  previousStart DateTime
+  previousEnd DateTime
+  newStart DateTime
+  newEnd DateTime
+  createdAt DateTime @default(now())
+  reservation Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  @@index([reservationId, createdAt])
+}
+
+model AdminAction {
+  id String @id @default(uuid())
+  actorId String
+  action String
+  resource String
+  recordId String
+  reason String?
+  createdAt DateTime @default(now())
+  @@index([createdAt, id])
 }
 
 model ClientSession {
@@ -223,6 +271,7 @@ model SessionEvidence {
 
   imageUrl      String
   imagePublicId String
+  deliveryType  String @default("upload")
 
   caption String?
 

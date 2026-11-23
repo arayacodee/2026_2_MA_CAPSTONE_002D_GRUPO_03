@@ -8,7 +8,6 @@ import { prisma } from "../lib/prisma.js";
 import { env } from "../config/env.js";
 import { privateUserSelect } from '../lib/user-profile.js';
 import { hasProfessionalAccess } from '../lib/subscriptions.js';
-import { paymentsConfigured } from '../lib/mercado-pago.js';
 
 import {
   SESSION_COOKIE,
@@ -39,7 +38,7 @@ export const authenticate = async (
           id: session.userId
         },
 
-        select: privateUserSelect
+        select: { ...privateUserSelect, isSuspended: true }
       });
 
     if (!user) {
@@ -48,7 +47,9 @@ export const authenticate = async (
       });
     }
 
-    req.authUser = user;
+    const { isSuspended, ...authenticated } = user;
+    if (isSuspended) return res.status(403).json({ error: 'La cuenta está suspendida.' });
+    req.authUser = authenticated;
 
     next();
   } catch {
@@ -96,12 +97,12 @@ export const requireRole =
       });
     }
 
-    if (req.authUser.role === 'PROFESSIONAL' && paymentsConfigured() && req.method !== 'GET') {
-      void hasProfessionalAccess(req.authUser.id).then(allowed => {
-        if (!allowed) return void res.status(402).json({ error: 'Tu período pagado terminó. Revisa tu suscripción en Empresas.' });
-        next();
-      }).catch(next);
-      return;
-    }
     next();
   };
+
+export function requireProfessionalAccess(req: Request, res: Response, next: NextFunction) {
+  void hasProfessionalAccess(req.authUser!.id).then(allowed => {
+    if (!allowed) return void res.status(402).json({ error: 'Tu período pagado terminó. Revisa tu suscripción en Empresas.' });
+    next();
+  }).catch(next);
+}

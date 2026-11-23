@@ -100,6 +100,11 @@ export class Booking implements OnInit {
       .getServiceById(serviceId)
       .subscribe({
         next: (service) => {
+          if (service.isActive === false) {
+            this.errorMessage.set('Este servicio ya no está disponible.');
+            this.loading.set(false);
+            return;
+          }
           this.service.set(service);
 
           this.loadBusiness(
@@ -126,6 +131,11 @@ export class Booking implements OnInit {
       .getBusinessById(businessId)
       .subscribe({
         next: (business) => {
+          if (business.canBook === false) {
+            this.errorMessage.set('Este negocio no está recibiendo nuevas reservas.');
+            this.loading.set(false);
+            return;
+          }
           this.business.set(business);
           this.loading.set(false);
         },

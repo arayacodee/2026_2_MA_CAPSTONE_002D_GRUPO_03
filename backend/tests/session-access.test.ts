@@ -43,7 +43,7 @@ test('un cliente no puede usar los endpoints profesionales de historial', () => 
 test('paginación limita resultados, devuelve cursor y rechaza tamaños inválidos', async () => {
   const original = prisma.clientSession.findMany;
   let query: any;
-  prisma.clientSession.findMany = (async (args: any) => { query = args; return Array.from({ length: 11 }, (_, i) => ({ id: `session-${i}` })); }) as any;
+  prisma.clientSession.findMany = (async (args: any) => { query = args; return Array.from({ length: 11 }, (_, i) => ({ id: `session-${i}`, evidences: [] })); }) as any;
   try {
     const res = response();
     const cursor = '00000000-0000-4000-8000-000000000001';
@@ -97,6 +97,7 @@ test('el filtro mensual pagina por fecha local sin perder registros en los lími
   const rows = dates.map((date, index) => ({
     id: `00000000-0000-4000-8000-00000000000${index}`,
     business,
+    evidences: [],
     occurredAt: new Date(date),
   }));
   prisma.clientSession.findMany = (async (args: any) => {

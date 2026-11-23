@@ -33,9 +33,9 @@
 
       @if (auth.isProfessional()) {
         <a routerLink="/dashboard">
-          Dashboard
+          Mi agenda
         </a>
-        <a routerLink="/dashboard/history">Resumen</a>
+        <a routerLink="/dashboard/history">Historial</a>
       }
 
       @if (auth.currentUser(); as user) {
@@ -69,6 +69,7 @@
 
 <footer class="site-footer">
   <div class="footer-content">
+    @if (!auth.currentUser()) {
     <section class="footer-professional" aria-labelledby="professional-footer-title">
       <div>
         <p class="footer-eyebrow">Para profesionales</p>
@@ -81,6 +82,7 @@
         </a>
       </div>
     </section>
+    }
 
     <div class="footer-columns">
       <div class="footer-brand-block">
