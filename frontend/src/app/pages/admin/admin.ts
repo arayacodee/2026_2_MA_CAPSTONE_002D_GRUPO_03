@@ -75,6 +75,7 @@ export class Admin {
   readonly creating = signal(false);
   readonly deleting = signal<AdminRecord | null>(null);
   readonly settingState = signal<AdminRecord | null>(null);
+  readonly grantingAccess = signal<{ rowId: string; user: AdminRecord } | null>(null);
   reason = '';
   readonly warning = signal('');
   readonly deletionEffects: Partial<Record<AdminSectionKey, string>> = {
@@ -228,6 +229,7 @@ export class Admin {
     this.closePassword();
     this.deleting.set(null);
     this.settingState.set(null);
+    this.grantingAccess.set(null);
     this.reason = '';
   }
 
@@ -246,6 +248,7 @@ export class Admin {
     this.closePassword();
     this.deleting.set(null);
     this.settingState.set(null);
+    this.grantingAccess.set(null);
     this.selected.set(record); this.creating.set(false); this.error.set(''); this.message.set(''); this.draft = {};
     for (const item of this.section().fields) {
       const value = record[item.key];
@@ -267,6 +270,7 @@ export class Admin {
     this.closePassword();
     this.deleting.set(null);
     this.settingState.set(null);
+    this.grantingAccess.set(null);
     this.error.set('');
     this.editorTrigger?.focus();
     this.editorTrigger = undefined;
@@ -285,6 +289,7 @@ export class Admin {
     if (this.saving() || record['role'] === 'SUPERADMIN') return;
     this.expandedId.set(record.id);
     this.settingState.set(null);
+    this.grantingAccess.set(null);
     this.close(); this.deleting.set(null); this.closePassword(); this.passwordUser.set(record); this.error.set(''); this.message.set('');
     this.revealEditor(trigger);
   }
@@ -301,6 +306,7 @@ export class Admin {
   requestDeletion(record: AdminRecord, trigger?: HTMLElement): void {
     if (this.saving() || record['role'] === 'SUPERADMIN' || !this.deletionEffects[this.section().key]) return;
     this.settingState.set(null);
+    this.grantingAccess.set(null);
     this.reason = '';
     this.expandedId.set(record.id);
     this.closePassword();
@@ -356,6 +362,53 @@ export class Admin {
       next: result => { this.saving.set(false); this.settingState.set(null); this.message.set(result.message); this.load(); },
       error: err => { this.saving.set(false); this.error.set(err?.error?.error ?? 'No fue posible guardar el cambio.'); },
     });
+  }
+
+  temporaryAccessUser(record: AdminRecord): AdminRecord | null {
+    const section = this.section().key;
+    const user = section === 'users' ? record : section === 'subscriptions' ? record['user'] : null;
+    if (!user || typeof user !== 'object' || !('role' in user)) return null;
+    if (user.role !== 'PROFESSIONAL' && !(section === 'subscriptions' && user.role === 'CLIENT')) return null;
+    return 'id' in user && typeof user.id === 'string' ? user as AdminRecord : null;
+  }
+
+  requestTemporaryAccess(record: AdminRecord, user: AdminRecord, trigger: HTMLElement): void {
+    this.resetRecordPanels();
+    this.expandedId.set(record.id);
+    this.grantingAccess.set({ rowId: record.id, user });
+    this.error.set('');
+    this.message.set('');
+    this.revealEditor(trigger);
+  }
+
+  saveTemporaryAccess(event: Event, duration: string, reason: string): void {
+    event.preventDefault();
+    const target = this.grantingAccess();
+    const months = Number(duration);
+    if (!target || this.saving()) return;
+    if (![1, 2, 3].includes(months) || reason.trim().length < 3) {
+      this.error.set('Selecciona 1, 2 o 3 meses e indica el motivo.');
+      return;
+    }
+    this.saving.set(true);
+    this.error.set('');
+    const subscriptionId = target.user['role'] === 'CLIENT' ? target.rowId : undefined;
+    this.http.patch<{ message: string }>(`${this.base}/users/${target.user.id}/temporary-access`, {
+      months, reason: reason.trim(), ...(subscriptionId ? { subscriptionId } : {}),
+    })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: result => {
+          this.saving.set(false);
+          this.dismissEditor();
+          this.message.set(result.message);
+          this.load();
+        },
+        error: err => {
+          this.saving.set(false);
+          this.error.set(err?.error?.error ?? 'No fue posible habilitar el acceso temporal.');
+        },
+      });
   }
   close(): void { this.selected.set(null); this.creating.set(false); }
   save(): void {

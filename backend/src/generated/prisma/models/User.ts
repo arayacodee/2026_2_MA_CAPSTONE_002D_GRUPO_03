@@ -33,6 +33,7 @@ export type UserMinAggregateOutputType = {
   passwordHash: string | null
   isSuspended: boolean | null
   accessGrant: $Enums.ProfessionalAccessGrant | null
+  manualAccessUntil: Date | null
   firstName: string | null
   lastName: string | null
   phone: string | null
@@ -53,6 +54,7 @@ export type UserMaxAggregateOutputType = {
   passwordHash: string | null
   isSuspended: boolean | null
   accessGrant: $Enums.ProfessionalAccessGrant | null
+  manualAccessUntil: Date | null
   firstName: string | null
   lastName: string | null
   phone: string | null
@@ -73,6 +75,7 @@ export type UserCountAggregateOutputType = {
   passwordHash: number
   isSuspended: number
   accessGrant: number
+  manualAccessUntil: number
   firstName: number
   lastName: number
   phone: number
@@ -95,6 +98,7 @@ export type UserMinAggregateInputType = {
   passwordHash?: true
   isSuspended?: true
   accessGrant?: true
+  manualAccessUntil?: true
   firstName?: true
   lastName?: true
   phone?: true
@@ -115,6 +119,7 @@ export type UserMaxAggregateInputType = {
   passwordHash?: true
   isSuspended?: true
   accessGrant?: true
+  manualAccessUntil?: true
   firstName?: true
   lastName?: true
   phone?: true
@@ -135,6 +140,7 @@ export type UserCountAggregateInputType = {
   passwordHash?: true
   isSuspended?: true
   accessGrant?: true
+  manualAccessUntil?: true
   firstName?: true
   lastName?: true
   phone?: true
@@ -228,6 +234,7 @@ export type UserGroupByOutputType = {
   passwordHash: string | null
   isSuspended: boolean
   accessGrant: $Enums.ProfessionalAccessGrant | null
+  manualAccessUntil: Date | null
   firstName: string | null
   lastName: string | null
   phone: string | null
@@ -269,6 +276,7 @@ export type UserWhereInput = {
   passwordHash?: Prisma.StringNullableFilter<"User"> | string | null
   isSuspended?: Prisma.BoolFilter<"User"> | boolean
   accessGrant?: Prisma.EnumProfessionalAccessGrantNullableFilter<"User"> | $Enums.ProfessionalAccessGrant | null
+  manualAccessUntil?: Prisma.DateTimeNullableFilter<"User"> | Date | string | null
   firstName?: Prisma.StringNullableFilter<"User"> | string | null
   lastName?: Prisma.StringNullableFilter<"User"> | string | null
   phone?: Prisma.StringNullableFilter<"User"> | string | null
@@ -294,6 +302,7 @@ export type UserOrderByWithRelationInput = {
   passwordHash?: Prisma.SortOrderInput | Prisma.SortOrder
   isSuspended?: Prisma.SortOrder
   accessGrant?: Prisma.SortOrderInput | Prisma.SortOrder
+  manualAccessUntil?: Prisma.SortOrderInput | Prisma.SortOrder
   firstName?: Prisma.SortOrderInput | Prisma.SortOrder
   lastName?: Prisma.SortOrderInput | Prisma.SortOrder
   phone?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -322,6 +331,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   passwordHash?: Prisma.StringNullableFilter<"User"> | string | null
   isSuspended?: Prisma.BoolFilter<"User"> | boolean
   accessGrant?: Prisma.EnumProfessionalAccessGrantNullableFilter<"User"> | $Enums.ProfessionalAccessGrant | null
+  manualAccessUntil?: Prisma.DateTimeNullableFilter<"User"> | Date | string | null
   firstName?: Prisma.StringNullableFilter<"User"> | string | null
   lastName?: Prisma.StringNullableFilter<"User"> | string | null
   phone?: Prisma.StringNullableFilter<"User"> | string | null
@@ -347,6 +357,7 @@ export type UserOrderByWithAggregationInput = {
   passwordHash?: Prisma.SortOrderInput | Prisma.SortOrder
   isSuspended?: Prisma.SortOrder
   accessGrant?: Prisma.SortOrderInput | Prisma.SortOrder
+  manualAccessUntil?: Prisma.SortOrderInput | Prisma.SortOrder
   firstName?: Prisma.SortOrderInput | Prisma.SortOrder
   lastName?: Prisma.SortOrderInput | Prisma.SortOrder
   phone?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -373,6 +384,7 @@ export type UserScalarWhereWithAggregatesInput = {
   passwordHash?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   isSuspended?: Prisma.BoolWithAggregatesFilter<"User"> | boolean
   accessGrant?: Prisma.EnumProfessionalAccessGrantNullableWithAggregatesFilter<"User"> | $Enums.ProfessionalAccessGrant | null
+  manualAccessUntil?: Prisma.DateTimeNullableWithAggregatesFilter<"User"> | Date | string | null
   firstName?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   lastName?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   phone?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
@@ -393,6 +405,7 @@ export type UserCreateInput = {
   passwordHash?: string | null
   isSuspended?: boolean
   accessGrant?: $Enums.ProfessionalAccessGrant | null
+  manualAccessUntil?: Date | string | null
   firstName?: string | null
   lastName?: string | null
   phone?: string | null
@@ -418,6 +431,7 @@ export type UserUncheckedCreateInput = {
   passwordHash?: string | null
   isSuspended?: boolean
   accessGrant?: $Enums.ProfessionalAccessGrant | null
+  manualAccessUntil?: Date | string | null
   firstName?: string | null
   lastName?: string | null
   phone?: string | null
@@ -443,6 +457,7 @@ export type UserUpdateInput = {
   passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isSuspended?: Prisma.BoolFieldUpdateOperationsInput | boolean
   accessGrant?: Prisma.NullableEnumProfessionalAccessGrantFieldUpdateOperationsInput | $Enums.ProfessionalAccessGrant | null
+  manualAccessUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -468,6 +483,7 @@ export type UserUncheckedUpdateInput = {
   passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isSuspended?: Prisma.BoolFieldUpdateOperationsInput | boolean
   accessGrant?: Prisma.NullableEnumProfessionalAccessGrantFieldUpdateOperationsInput | $Enums.ProfessionalAccessGrant | null
+  manualAccessUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -493,6 +509,7 @@ export type UserCreateManyInput = {
   passwordHash?: string | null
   isSuspended?: boolean
   accessGrant?: $Enums.ProfessionalAccessGrant | null
+  manualAccessUntil?: Date | string | null
   firstName?: string | null
   lastName?: string | null
   phone?: string | null
@@ -513,6 +530,7 @@ export type UserUpdateManyMutationInput = {
   passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isSuspended?: Prisma.BoolFieldUpdateOperationsInput | boolean
   accessGrant?: Prisma.NullableEnumProfessionalAccessGrantFieldUpdateOperationsInput | $Enums.ProfessionalAccessGrant | null
+  manualAccessUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -533,6 +551,7 @@ export type UserUncheckedUpdateManyInput = {
   passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isSuspended?: Prisma.BoolFieldUpdateOperationsInput | boolean
   accessGrant?: Prisma.NullableEnumProfessionalAccessGrantFieldUpdateOperationsInput | $Enums.ProfessionalAccessGrant | null
+  manualAccessUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -553,6 +572,7 @@ export type UserCountOrderByAggregateInput = {
   passwordHash?: Prisma.SortOrder
   isSuspended?: Prisma.SortOrder
   accessGrant?: Prisma.SortOrder
+  manualAccessUntil?: Prisma.SortOrder
   firstName?: Prisma.SortOrder
   lastName?: Prisma.SortOrder
   phone?: Prisma.SortOrder
@@ -573,6 +593,7 @@ export type UserMaxOrderByAggregateInput = {
   passwordHash?: Prisma.SortOrder
   isSuspended?: Prisma.SortOrder
   accessGrant?: Prisma.SortOrder
+  manualAccessUntil?: Prisma.SortOrder
   firstName?: Prisma.SortOrder
   lastName?: Prisma.SortOrder
   phone?: Prisma.SortOrder
@@ -593,6 +614,7 @@ export type UserMinOrderByAggregateInput = {
   passwordHash?: Prisma.SortOrder
   isSuspended?: Prisma.SortOrder
   accessGrant?: Prisma.SortOrder
+  manualAccessUntil?: Prisma.SortOrder
   firstName?: Prisma.SortOrder
   lastName?: Prisma.SortOrder
   phone?: Prisma.SortOrder
@@ -716,6 +738,7 @@ export type UserCreateWithoutProfessionalApplicationInput = {
   passwordHash?: string | null
   isSuspended?: boolean
   accessGrant?: $Enums.ProfessionalAccessGrant | null
+  manualAccessUntil?: Date | string | null
   firstName?: string | null
   lastName?: string | null
   phone?: string | null
@@ -740,6 +763,7 @@ export type UserUncheckedCreateWithoutProfessionalApplicationInput = {
   passwordHash?: string | null
   isSuspended?: boolean
   accessGrant?: $Enums.ProfessionalAccessGrant | null
+  manualAccessUntil?: Date | string | null
   firstName?: string | null
   lastName?: string | null
   phone?: string | null
@@ -780,6 +804,7 @@ export type UserUpdateWithoutProfessionalApplicationInput = {
   passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isSuspended?: Prisma.BoolFieldUpdateOperationsInput | boolean
   accessGrant?: Prisma.NullableEnumProfessionalAccessGrantFieldUpdateOperationsInput | $Enums.ProfessionalAccessGrant | null
+  manualAccessUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -804,6 +829,7 @@ export type UserUncheckedUpdateWithoutProfessionalApplicationInput = {
   passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isSuspended?: Prisma.BoolFieldUpdateOperationsInput | boolean
   accessGrant?: Prisma.NullableEnumProfessionalAccessGrantFieldUpdateOperationsInput | $Enums.ProfessionalAccessGrant | null
+  manualAccessUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -828,6 +854,7 @@ export type UserCreateWithoutSubscriptionsInput = {
   passwordHash?: string | null
   isSuspended?: boolean
   accessGrant?: $Enums.ProfessionalAccessGrant | null
+  manualAccessUntil?: Date | string | null
   firstName?: string | null
   lastName?: string | null
   phone?: string | null
@@ -852,6 +879,7 @@ export type UserUncheckedCreateWithoutSubscriptionsInput = {
   passwordHash?: string | null
   isSuspended?: boolean
   accessGrant?: $Enums.ProfessionalAccessGrant | null
+  manualAccessUntil?: Date | string | null
   firstName?: string | null
   lastName?: string | null
   phone?: string | null
@@ -892,6 +920,7 @@ export type UserUpdateWithoutSubscriptionsInput = {
   passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isSuspended?: Prisma.BoolFieldUpdateOperationsInput | boolean
   accessGrant?: Prisma.NullableEnumProfessionalAccessGrantFieldUpdateOperationsInput | $Enums.ProfessionalAccessGrant | null
+  manualAccessUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -916,6 +945,7 @@ export type UserUncheckedUpdateWithoutSubscriptionsInput = {
   passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isSuspended?: Prisma.BoolFieldUpdateOperationsInput | boolean
   accessGrant?: Prisma.NullableEnumProfessionalAccessGrantFieldUpdateOperationsInput | $Enums.ProfessionalAccessGrant | null
+  manualAccessUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -940,6 +970,7 @@ export type UserCreateWithoutBusinessesInput = {
   passwordHash?: string | null
   isSuspended?: boolean
   accessGrant?: $Enums.ProfessionalAccessGrant | null
+  manualAccessUntil?: Date | string | null
   firstName?: string | null
   lastName?: string | null
   phone?: string | null
@@ -964,6 +995,7 @@ export type UserUncheckedCreateWithoutBusinessesInput = {
   passwordHash?: string | null
   isSuspended?: boolean
   accessGrant?: $Enums.ProfessionalAccessGrant | null
+  manualAccessUntil?: Date | string | null
   firstName?: string | null
   lastName?: string | null
   phone?: string | null
@@ -1004,6 +1036,7 @@ export type UserUpdateWithoutBusinessesInput = {
   passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isSuspended?: Prisma.BoolFieldUpdateOperationsInput | boolean
   accessGrant?: Prisma.NullableEnumProfessionalAccessGrantFieldUpdateOperationsInput | $Enums.ProfessionalAccessGrant | null
+  manualAccessUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1028,6 +1061,7 @@ export type UserUncheckedUpdateWithoutBusinessesInput = {
   passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isSuspended?: Prisma.BoolFieldUpdateOperationsInput | boolean
   accessGrant?: Prisma.NullableEnumProfessionalAccessGrantFieldUpdateOperationsInput | $Enums.ProfessionalAccessGrant | null
+  manualAccessUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1052,6 +1086,7 @@ export type UserCreateWithoutReservationsInput = {
   passwordHash?: string | null
   isSuspended?: boolean
   accessGrant?: $Enums.ProfessionalAccessGrant | null
+  manualAccessUntil?: Date | string | null
   firstName?: string | null
   lastName?: string | null
   phone?: string | null
@@ -1076,6 +1111,7 @@ export type UserUncheckedCreateWithoutReservationsInput = {
   passwordHash?: string | null
   isSuspended?: boolean
   accessGrant?: $Enums.ProfessionalAccessGrant | null
+  manualAccessUntil?: Date | string | null
   firstName?: string | null
   lastName?: string | null
   phone?: string | null
@@ -1116,6 +1152,7 @@ export type UserUpdateWithoutReservationsInput = {
   passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isSuspended?: Prisma.BoolFieldUpdateOperationsInput | boolean
   accessGrant?: Prisma.NullableEnumProfessionalAccessGrantFieldUpdateOperationsInput | $Enums.ProfessionalAccessGrant | null
+  manualAccessUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1140,6 +1177,7 @@ export type UserUncheckedUpdateWithoutReservationsInput = {
   passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isSuspended?: Prisma.BoolFieldUpdateOperationsInput | boolean
   accessGrant?: Prisma.NullableEnumProfessionalAccessGrantFieldUpdateOperationsInput | $Enums.ProfessionalAccessGrant | null
+  manualAccessUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1164,6 +1202,7 @@ export type UserCreateWithoutClientSessionsInput = {
   passwordHash?: string | null
   isSuspended?: boolean
   accessGrant?: $Enums.ProfessionalAccessGrant | null
+  manualAccessUntil?: Date | string | null
   firstName?: string | null
   lastName?: string | null
   phone?: string | null
@@ -1188,6 +1227,7 @@ export type UserUncheckedCreateWithoutClientSessionsInput = {
   passwordHash?: string | null
   isSuspended?: boolean
   accessGrant?: $Enums.ProfessionalAccessGrant | null
+  manualAccessUntil?: Date | string | null
   firstName?: string | null
   lastName?: string | null
   phone?: string | null
@@ -1228,6 +1268,7 @@ export type UserUpdateWithoutClientSessionsInput = {
   passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isSuspended?: Prisma.BoolFieldUpdateOperationsInput | boolean
   accessGrant?: Prisma.NullableEnumProfessionalAccessGrantFieldUpdateOperationsInput | $Enums.ProfessionalAccessGrant | null
+  manualAccessUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1252,6 +1293,7 @@ export type UserUncheckedUpdateWithoutClientSessionsInput = {
   passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isSuspended?: Prisma.BoolFieldUpdateOperationsInput | boolean
   accessGrant?: Prisma.NullableEnumProfessionalAccessGrantFieldUpdateOperationsInput | $Enums.ProfessionalAccessGrant | null
+  manualAccessUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1334,6 +1376,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   passwordHash?: boolean
   isSuspended?: boolean
   accessGrant?: boolean
+  manualAccessUntil?: boolean
   firstName?: boolean
   lastName?: boolean
   phone?: boolean
@@ -1360,6 +1403,7 @@ export type UserSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   passwordHash?: boolean
   isSuspended?: boolean
   accessGrant?: boolean
+  manualAccessUntil?: boolean
   firstName?: boolean
   lastName?: boolean
   phone?: boolean
@@ -1380,6 +1424,7 @@ export type UserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   passwordHash?: boolean
   isSuspended?: boolean
   accessGrant?: boolean
+  manualAccessUntil?: boolean
   firstName?: boolean
   lastName?: boolean
   phone?: boolean
@@ -1400,6 +1445,7 @@ export type UserSelectScalar = {
   passwordHash?: boolean
   isSuspended?: boolean
   accessGrant?: boolean
+  manualAccessUntil?: boolean
   firstName?: boolean
   lastName?: boolean
   phone?: boolean
@@ -1411,7 +1457,7 @@ export type UserSelectScalar = {
   updatedAt?: boolean
 }
 
-export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "email" | "name" | "role" | "googleId" | "passwordHash" | "isSuspended" | "accessGrant" | "firstName" | "lastName" | "phone" | "address" | "phoneVerifiedAt" | "pendingVerificationSid" | "phoneVerificationSentAt" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
+export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "email" | "name" | "role" | "googleId" | "passwordHash" | "isSuspended" | "accessGrant" | "manualAccessUntil" | "firstName" | "lastName" | "phone" | "address" | "phoneVerifiedAt" | "pendingVerificationSid" | "phoneVerificationSentAt" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
 export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   professionalApplication?: boolean | Prisma.User$professionalApplicationArgs<ExtArgs>
   subscriptions?: boolean | Prisma.User$subscriptionsArgs<ExtArgs>
@@ -1441,6 +1487,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     passwordHash: string | null
     isSuspended: boolean
     accessGrant: $Enums.ProfessionalAccessGrant | null
+    manualAccessUntil: Date | null
     firstName: string | null
     lastName: string | null
     phone: string | null
@@ -1886,6 +1933,7 @@ export interface UserFieldRefs {
   readonly passwordHash: Prisma.FieldRef<"User", 'String'>
   readonly isSuspended: Prisma.FieldRef<"User", 'Boolean'>
   readonly accessGrant: Prisma.FieldRef<"User", 'ProfessionalAccessGrant'>
+  readonly manualAccessUntil: Prisma.FieldRef<"User", 'DateTime'>
   readonly firstName: Prisma.FieldRef<"User", 'String'>
   readonly lastName: Prisma.FieldRef<"User", 'String'>
   readonly phone: Prisma.FieldRef<"User", 'String'>

@@ -39,7 +39,7 @@ import {
 })
 export class ApiService {
   subscriptionCheckout() { return this.http.post<{ checkoutUrl: string }>(`${this.baseUrl}/api/subscriptions/checkout`, {}); }
-  subscriptions() { return this.http.get<{ subscriptions: { id: string; status: string; paidUntil: string | null; businessName: string }[] }>(`${this.baseUrl}/api/subscriptions`); }
+  subscriptions() { return this.http.get<{ manualAccessUntil: string | null; subscriptions: { id: string; status: string; paidUntil: string | null; businessName: string }[] }>(`${this.baseUrl}/api/subscriptions`); }
   refreshSubscriptions() { return this.http.post(`${this.baseUrl}/api/subscriptions/refresh`, {}); }
   cancelSubscription(id: string) { return this.http.post(`${this.baseUrl}/api/subscriptions/${encodeURIComponent(id)}/cancel`, {}); }
   activateProfessionalDemo() { return this.http.post<AuthResponse>(`${this.baseUrl}/api/account/professional-application/activate-demo`, {}); }

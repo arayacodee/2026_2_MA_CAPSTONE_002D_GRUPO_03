@@ -6,6 +6,7 @@ export const bookingOwnerSelect = {
   role: true,
   isSuspended: true,
   accessGrant: true,
+  manualAccessUntil: true,
   subscriptions: { select: { paidUntil: true }, where: { paidUntil: { not: null } } },
 } satisfies Prisma.UserSelect;
 
@@ -15,8 +16,9 @@ export function canReceiveBookings(business: {
 }): boolean {
   const { owner } = business;
   if (business.isArchived || owner.isSuspended || owner.role !== 'PROFESSIONAL') return false;
-  return Boolean(owner.accessGrant) ||
-    owner.subscriptions.some(record => record.paidUntil && record.paidUntil > new Date());
+  const now = new Date();
+  return Boolean(owner.accessGrant || (owner.manualAccessUntil && owner.manualAccessUntil > now)) ||
+    owner.subscriptions.some(record => record.paidUntil && record.paidUntil > now);
 }
 
 export async function hasProfessionalAccess(userId: string): Promise<boolean> {

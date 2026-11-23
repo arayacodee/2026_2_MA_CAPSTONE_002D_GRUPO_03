@@ -14,12 +14,20 @@ const { default: routes } = await import('../src/routes/admin.routes.js');
 const { createSessionToken } = await import('../src/lib/session.js');
 
 test('administración exige superadmin, consulta global y bloquea escalamiento y cambios de identidad', async () => {
-  const originals = { user: prisma.user.findUnique, users: prisma.user.findMany, business: prisma.business.findMany, update: prisma.user.updateMany, transaction: prisma.$transaction };
-  prisma.$transaction = (async (callback: any) => callback({ user: prisma.user, business: prisma.business, adminAction: { create: async () => ({}) } })) as any;
+  const originals = { user: prisma.user.findUnique, users: prisma.user.findMany, business: prisma.business.findMany, update: prisma.user.updateMany, updateOne: prisma.user.update, transaction: prisma.$transaction };
+  const audit: { action: string }[] = [];
+  prisma.$transaction = (async (callback: any) => callback({
+    user: prisma.user, business: prisma.business, professionalSubscription: prisma.professionalSubscription,
+    adminAction: { create: async ({ data }: { data: { action: string } }) => audit.push(data) },
+  })) as any;
   let role: 'CLIENT' | 'PROFESSIONAL' | 'SUPERADMIN' = 'CLIENT';
   let businessQuery: any;
   let writes = 0;
-  prisma.user.findUnique = (async () => ({ id: 'admin', email: 'admin@example.com', name: 'Admin', role })) as any;
+  let temporaryEnd: Date | null = null;
+  let accessTargetRole: 'SUPERADMIN' | 'PROFESSIONAL' | 'CLIENT' = 'SUPERADMIN';
+  prisma.user.findUnique = (async (args: { select?: { manualAccessUntil?: boolean } }) => args.select?.manualAccessUntil
+    ? { role: accessTargetRole, manualAccessUntil: temporaryEnd }
+    : { id: 'admin', email: 'admin@example.com', name: 'Admin', role }) as any;
   prisma.user.findMany = (async () => []) as any;
   prisma.business.findMany = (async (args: any) => { businessQuery = args; return Array.from({ length: 51 }, (_, index) => ({ id: String(index) })); }) as any;
   prisma.user.updateMany = (async () => { writes++; return { count: 1 }; }) as any;
@@ -30,6 +38,9 @@ test('administración exige superadmin, consulta global y bloquea escalamiento y
   const cookie = `cronos_session=${await createSessionToken('admin')}`;
   const id = '00000000-0000-4000-8000-000000000001';
   const patch = (data: unknown) => fetch(`${url}/users/${id}`, { method: 'PATCH', headers: { cookie, 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+  const grant = (months: number, subscriptionId?: string) => fetch(`${url}/users/${id}/temporary-access`, {
+    method: 'PATCH', headers: { cookie, 'Content-Type': 'application/json' }, body: JSON.stringify({ months, reason: 'Período de prueba', subscriptionId }),
+  });
   try {
     assert.equal((await fetch(`${url}/users`)).status, 401);
     for (const denied of ['CLIENT', 'PROFESSIONAL'] as const) {
@@ -38,6 +49,7 @@ test('administración exige superadmin, consulta global y bloquea escalamiento y
       assert.equal((await fetch(`${url}/evidences/businesses`, { headers: { cookie } })).status, 403);
       assert.equal((await fetch(`${url}/reservations?businessId=${id}`, { headers: { cookie } })).status, 403);
       assert.equal((await patch({ role: 'PROFESSIONAL' })).status, 403);
+      assert.equal((await grant(2)).status, 403);
       assert.equal((await fetch(`${url}/users/${id}/password`, { method: 'PATCH', headers: { cookie, 'Content-Type': 'application/json' }, body: JSON.stringify({ password: 'new-password' }) })).status, 403);
       assert.equal((await fetch(`${url}/businesses/${id}`, { method: 'DELETE', headers: { cookie, 'Content-Type': 'application/json' }, body: JSON.stringify({ confirm: true }) })).status, 403);
     }
@@ -66,8 +78,49 @@ test('administración exige superadmin, consulta global y bloquea escalamiento y
     prisma.user.updateMany = (async () => ({ count: 0 })) as any;
     assert.equal((await fetch(`${url}/users/${id}/password`, { method: 'PATCH', headers: { cookie, 'Content-Type': 'application/json' }, body: JSON.stringify({ password: 'new-password' }) })).status, 404);
     assert.equal((await fetch(`${url}/users?page=0`, { headers: { cookie } })).status, 400);
+    assert.equal((await grant(3)).status, 404);
+    accessTargetRole = 'PROFESSIONAL';
+    for (const invalid of [0, 1.5, 4]) assert.equal((await grant(invalid)).status, 400);
+    prisma.user.update = (async ({ data }: { data: { isSuspended: boolean; accessGrant: null; manualAccessUntil: Date } }) => {
+      assert.equal(data.isSuspended, false);
+      assert.equal(data.accessGrant, null);
+      temporaryEnd = data.manualAccessUntil;
+      return { id };
+    }) as any;
+    const firstEnd = (await (await grant(3)).json() as { manualAccessUntil: string }).manualAccessUntil;
+    assert.ok(Date.parse(firstEnd) > Date.now());
+    const shorter = await grant(1);
+    assert.equal(shorter.status, 200);
+    assert.equal((await shorter.json() as { manualAccessUntil: string }).manualAccessUntil, firstEnd);
+    assert.equal(audit.filter(item => item.action === 'temporary_access').length, 2);
+    accessTargetRole = 'CLIENT';
+    assert.equal((await grant(2)).status, 404);
+    const subscriptionId = '00000000-0000-4000-8000-000000000002';
+    const saved = { subscription: prisma.professionalSubscription.findUnique, business: prisma.business.findUnique, create: prisma.business.create };
+    try {
+      prisma.professionalSubscription.findUnique = (async ({ where }: { where: { id: string; userId: string } }) => {
+        assert.equal(where.userId, id);
+        return where.id === subscriptionId ? { businessName: 'Estudio de prueba', category: 'GENERAL', description: null } : null;
+      }) as any;
+      prisma.business.findUnique = (async () => null) as any;
+      let created = 0;
+      prisma.business.create = (async ({ data }: { data: { ownerId: string } }) => {
+        assert.equal(data.ownerId, id);
+        created++;
+        return { id: 'business' };
+      }) as any;
+      assert.equal((await grant(2, id)).status, 404);
+      assert.equal(created, 0);
+      assert.equal((await grant(2, subscriptionId)).status, 200);
+      assert.equal(created, 1);
+    } finally {
+      prisma.professionalSubscription.findUnique = saved.subscription;
+      prisma.business.findUnique = saved.business;
+      prisma.business.create = saved.create;
+    }
   } finally {
     prisma.user.findUnique = originals.user; prisma.user.findMany = originals.users;
+    prisma.user.update = originals.updateOne;
     prisma.business.findMany = originals.business; prisma.user.updateMany = originals.update; prisma.$transaction = originals.transaction;
     await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
   }

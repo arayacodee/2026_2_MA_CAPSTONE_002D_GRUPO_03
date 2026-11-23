@@ -30,6 +30,8 @@ El profesional administra su propio negocio desde **Mi agenda** e **Historial**.
 
 El superadmin puede suspender cuentas, archivar negocios y desactivar servicios indicando un motivo. Puede revertir estas acciones desde el panel. La eliminación permanente se reserva para cuentas, negocios y servicios sin historial, así como horarios o evidencias puntuales. Las reservas y atenciones se conservan. La bitácora registra la cuenta administradora, el registro, la acción, la fecha y el motivo cuando corresponde.
 
+Desde **Suscripciones** o **Usuarios**, **Gestionar** permite habilitar una cuenta profesional por 1, 2 o 3 meses desde el día del cambio. Si está suspendida, se reactiva en la misma operación. Desde **Suscripciones** se puede habilitar a un cliente como profesional con su propia solicitud de plan. El acceso temporal tiene su propio vencimiento, conserva cualquier período posterior vigente y se muestra en **Mi suscripción**. Los cobros y la renovación se siguen administrando por separado en Mercado Pago.
+
 La cuenta compartida ingresa por `/admin/login` con el identificador `superadmin@cronos` y la contraseña configurada para el equipo. El identificador se usa exclusivamente para el inicio de sesión de administración.
 
 En `backend`, ejecutar `npm run admin:configure` e ingresar la contraseña elegida. El comando prepara `SUPERADMIN_PASSWORD_HASH` en el `.env` local con scrypt y una sal aleatoria.

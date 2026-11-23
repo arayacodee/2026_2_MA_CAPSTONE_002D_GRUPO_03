@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { env } from '../config/env.js';
+import { addCalendarMonths } from './calendar-months.js';
 
 export const MONTHLY_PRICE = 7900;
 export const paymentsConfigured = () => Boolean(env.MP_ACCESS_TOKEN && env.MP_WEBHOOK_SECRET && env.MP_RETURN_URL && env.MP_WEBHOOK_URL);
@@ -39,10 +40,5 @@ export function invoicePeriodEnd(invoice: MPInvoice): Date | null {
   if (invoice.payment?.status !== 'approved' || invoice.currency_id !== 'CLP' || Number(invoice.transaction_amount) !== MONTHLY_PRICE) return null;
   const start = new Date(invoice.debit_date);
   if (!Number.isFinite(start.getTime()) || start.getTime() > Date.now() + 86400000) return null;
-  const end = new Date(start);
-  const day = end.getUTCDate();
-  end.setUTCDate(1); end.setUTCMonth(end.getUTCMonth() + 1);
-  const lastDay = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() + 1, 0)).getUTCDate();
-  end.setUTCDate(Math.min(day, lastDay));
-  return end;
+  return addCalendarMonths(start, 1);
 }

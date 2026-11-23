@@ -92,6 +92,7 @@ export const UserScalarFieldEnum = {
   passwordHash: 'passwordHash',
   isSuspended: 'isSuspended',
   accessGrant: 'accessGrant',
+  manualAccessUntil: 'manualAccessUntil',
   firstName: 'firstName',
   lastName: 'lastName',
   phone: 'phone',

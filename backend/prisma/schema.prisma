@@ -48,6 +48,7 @@ model User {
   passwordHash String?
   isSuspended  Boolean @default(false)
   accessGrant  ProfessionalAccessGrant?
+  manualAccessUntil DateTime?
   firstName    String?
   lastName     String?
   phone        String?

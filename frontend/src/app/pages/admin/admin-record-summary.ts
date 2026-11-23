@@ -25,6 +25,7 @@ const actions: Record<string, string> = {
   password_changed: 'Cambió contraseña', user_created: 'Habilitó usuario', updated: 'Editó registro',
   disabled: 'Desactivó registro', restored: 'Reactivó registro', deleted: 'Eliminó registro',
   cancelled: 'Canceló reserva', completed: 'Registró atención',
+  temporary_access: 'Habilitó acceso temporal',
 };
 const weekdays = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 const dateTime = new Intl.DateTimeFormat('es-CL', { dateStyle: 'short', timeStyle: 'short' });
@@ -35,9 +36,13 @@ function text(value: unknown): string {
   return typeof value === 'number' ? String(value) : '';
 }
 
-function related(record: AdminRecord, relation: string, key: string): string {
+function related(record: AdminRecord, relation: string, key: string): unknown {
   const value = record[relation];
-  return value && typeof value === 'object' ? text((value as Record<string, unknown>)[key]) : '';
+  return value && typeof value === 'object' ? (value as Record<string, unknown>)[key] : undefined;
+}
+
+function relatedText(record: AdminRecord, relation: string, key: string): string {
+  return text(related(record, relation, key));
 }
 
 function dateLabel(value: unknown): string {
@@ -56,7 +61,7 @@ function durationLabel(value: unknown): string {
 }
 
 function contactLabel(record: AdminRecord, relation: 'client' | 'owner'): string {
-  return related(record, relation, 'name') || related(record, relation, 'email');
+  return relatedText(record, relation, 'name') || relatedText(record, relation, 'email');
 }
 
 function summary(title: string, context: string[], badge?: Badge) {
@@ -81,7 +86,8 @@ export function describeAdminRecord(section: AdminSectionKey, record: AdminRecor
   switch (section) {
     case 'users': {
       const email = text(record['email']);
-      return summary(name || email || 'Usuario sin nombre', [name ? email : '', accessGrants[text(record['accessGrant'])]],
+      return summary(name || email || 'Usuario sin nombre', [name ? email : '', accessGrants[text(record['accessGrant'])],
+        dateLabel(record['manualAccessUntil']) ? `Acceso temporal hasta ${dateLabel(record['manualAccessUntil'])}` : ''],
         record['isSuspended'] ? { label: 'Suspendido', tone: 'negative' } : roles[text(record['role'])]);
     }
     case 'businesses': {
@@ -98,16 +104,22 @@ export function describeAdminRecord(section: AdminSectionKey, record: AdminRecor
       return summary(weekdays[Number(record['dayOfWeek'])] || 'Horario', [hours], activeBadge(record['isActive']));
     }
     case 'reservations':
-      return summary(person || 'Reserva', [text(record['bookedServiceName']) || related(record, 'service', 'name'), dateLabel(record['startsAt'])], reservationStatuses[text(record['status'])]);
+      return summary(person || 'Reserva', [text(record['bookedServiceName']) || relatedText(record, 'service', 'name'), dateLabel(record['startsAt'])], reservationStatuses[text(record['status'])]);
     case 'sessions':
       return summary(person || 'Atención', [dateLabel(record['occurredAt'])]);
     case 'evidences':
       return summary(text(record['caption']) || 'Evidencia fotográfica', [dateLabel(record['createdAt'])]);
     case 'subscriptions': {
-      const until = text(record['paidUntil']);
-      const active = until && new Date(until).getTime() > Date.now();
-      return summary(text(record['businessName']) || 'Plan de empresa', [related(record, 'user', 'email'), dateLabel(until)],
-        active ? { label: 'Período vigente', tone: 'positive' } : { label: 'Sin período vigente', tone: 'neutral' });
+      const paidUntil = text(record['paidUntil']);
+      const manualUntil = relatedText(record, 'user', 'manualAccessUntil');
+      let badge: Badge = { label: 'Sin período vigente', tone: 'neutral' };
+      if (related(record, 'user', 'isSuspended') === true) badge = { label: 'Cuenta suspendida', tone: 'negative' };
+      else if (Date.parse(paidUntil) > Date.now()) badge = { label: 'Período pagado vigente', tone: 'positive' };
+      else if (Date.parse(manualUntil) > Date.now()) badge = { label: 'Acceso temporal vigente', tone: 'positive' };
+      return summary(text(record['businessName']) || 'Plan de empresa', [
+        relatedText(record, 'user', 'email'), dateLabel(paidUntil),
+        Date.parse(manualUntil) > Date.now() ? `Acceso temporal hasta ${dateLabel(manualUntil)}` : '',
+      ], badge);
     }
     case 'audit':
       return summary(actions[text(record['action'])] || 'Acción administrativa', [dateLabel(record['createdAt']), text(record['reason'])]);
@@ -123,7 +135,8 @@ export function adminRecordFields(section: AdminSectionKey, record: AdminRecord)
     case 'users':
       fields.push(['Nombre', text(record['name']) || 'Sin nombre'], ['Correo electrónico', record['email']],
         ['Rol', roles[text(record['role'])]?.label], ['Estado', record['isSuspended'] ? 'Suspendido' : 'Activo'],
-        ['Acceso profesional', accessGrants[text(record['accessGrant'])]]);
+        ['Acceso profesional', accessGrants[text(record['accessGrant'])]],
+        ['Vencimiento del acceso temporal', dateLabel(record['manualAccessUntil'])]);
       break;
     case 'businesses':
       fields.push(
@@ -165,8 +178,9 @@ export function adminRecordFields(section: AdminSectionKey, record: AdminRecord)
       fields.push(['Descripción', record['caption']], ['Fecha de atención', dateLabel(related(record, 'session', 'occurredAt'))], ['ID de la atención', record['sessionId']]);
       break;
     case 'subscriptions':
-      fields.push(['Negocio', record['businessName']], ['Profesional', related(record, 'user', 'name') || related(record, 'user', 'email')],
-        ['Estado en Mercado Pago', record['status']], ['Período pagado hasta', dateLabel(record['paidUntil']) || 'Sin registro']);
+      fields.push(['Negocio', record['businessName']], ['Profesional', relatedText(record, 'user', 'name') || relatedText(record, 'user', 'email')],
+        ['Estado en Mercado Pago', record['status']], ['Período pagado hasta', dateLabel(record['paidUntil']) || 'Sin registro'],
+        ['Vencimiento del acceso temporal', dateLabel(related(record, 'user', 'manualAccessUntil'))]);
       break;
     case 'audit':
       fields.push(['Actor', record['actorId']], ['Acción', title], ['Sección', record['resource']], ['Registro afectado', record['recordId']], ['Motivo', record['reason']]);

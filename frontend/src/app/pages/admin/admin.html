@@ -62,7 +62,7 @@
 
       @if (message()) { <p class="notice success" role="status">{{ message() }}</p> }
       @if (warning()) { <p class="notice warning" role="status">{{ warning() }}</p> }
-      @if (error() && !creating() && !selected() && !passwordUser() && !deleting() && !settingState()) {
+      @if (error() && !creating() && !selected() && !passwordUser() && !deleting() && !settingState() && !grantingAccess()) {
         <p class="notice error" role="alert">{{ error() }}</p>
       }
 
@@ -199,6 +199,11 @@
                       @if (stateActionLabel(record); as actionLabel) {
                         <button #stateButton type="button" [disabled]="saving()" (click)="requestStateChange(record, stateButton)">{{ actionLabel }}</button>
                       }
+                      @if (temporaryAccessUser(record); as user) {
+                        <button #accessButton type="button" [disabled]="saving()" (click)="requestTemporaryAccess(record, user, accessButton)">
+                          {{ user['isSuspended'] ? 'Reactivar con acceso temporal' : 'Dar acceso temporal' }}
+                        </button>
+                      }
                       @if (record['role'] !== 'SUPERADMIN' && deletionEffects[section().key]) {
                         <button #deleteButton type="button" class="danger delete-button" [disabled]="saving()"
                           (click)="requestDeletion(record, deleteButton)">Eliminar</button>
@@ -242,6 +247,39 @@
                           <button type="button" [disabled]="saving()" (click)="dismissEditor()">Cancelar</button>
                         </div>
                       </form>
+                    }
+                    @if (grantingAccess(); as access) {
+                      @if (access.rowId === record.id) {
+                        <form #editor class="editor" (submit)="saveTemporaryAccess($event, duration.value, accessReason.value)">
+                          <header>
+                            <h3>{{ access.user['isSuspended'] ? 'Reactivar cuenta' : 'Habilitar acceso temporal' }}</h3>
+                            <p>El período se cuenta desde hoy y el acceso se habilita sin cobro ni renovación automática. Se conservan los períodos pagados y los accesos temporales con un vencimiento posterior.</p>
+                            @if (access.user['role'] === 'CLIENT') {
+                              <p>La cuenta pasará a profesional. Si aún no tiene un negocio, se creará con los datos de esta suscripción.</p>
+                            }
+                            @if (access.user['accessGrant']) {
+                              <p>El acceso sin fecha de vencimiento se reemplazará por el período temporal.</p>
+                            }
+                          </header>
+                          <div class="form-grid">
+                            <label class="form-field">Duración
+                              <select #duration required [disabled]="saving()">
+                                <option value="1">1 mes</option>
+                                <option value="2">2 meses</option>
+                                <option value="3">3 meses</option>
+                              </select>
+                            </label>
+                            <label class="form-field">Motivo
+                              <input #accessReason type="text" required minlength="3" maxlength="300" [disabled]="saving()" />
+                            </label>
+                          </div>
+                          @if (error()) { <p class="notice error" role="alert">{{ error() }}</p> }
+                          <div class="actions">
+                            <button type="submit" class="primary" [disabled]="saving()">Confirmar acceso</button>
+                            <button type="button" [disabled]="saving()" (click)="dismissEditor()">Cancelar</button>
+                          </div>
+                        </form>
+                      }
                     }
                     @if (deleting()?.id === record.id) {
                       <section #editor class="delete-confirmation" aria-label="Confirmar eliminación">

@@ -10,6 +10,7 @@ import { hashAdminPassword } from '../lib/admin-password.js';
 import { adminLoginLimit } from '../middleware/admin-login-limit.js';
 import { recordAdminAction } from '../lib/admin-audit.js';
 import { evidenceForRead } from '../lib/evidence-media.js';
+import { addCalendarMonths } from '../lib/calendar-months.js';
 
 const router = Router();
 router.use(authenticate, requireRole('SUPERADMIN'));
@@ -28,7 +29,7 @@ router.patch('/users/:id/password', adminLoginLimit(), async (req, res) => {
   res.json({ message: 'Contraseña actualizada.' });
 });
 
-const userSelect = { id: true, email: true, name: true, role: true, isSuspended: true, accessGrant: true, createdAt: true, updatedAt: true } as const;
+const userSelect = { id: true, email: true, name: true, role: true, isSuspended: true, accessGrant: true, manualAccessUntil: true, createdAt: true, updatedAt: true } as const;
 const text = z.string().trim().min(2).max(100);
 const description = z.string().max(500).nullable();
 const userFields = z.object({ name: text.nullable().optional(), role: z.enum(['CLIENT', 'PROFESSIONAL']).optional() }).strict();
@@ -130,6 +131,59 @@ router.post('/users', async (req, res) => {
 router.patch('/reservations/:id/cancel', cancelReservation);
 router.patch('/reservations/:id/complete', completeReservation);
 
+router.patch('/users/:id/temporary-access', async (req, res) => {
+  const id = z.uuid().safeParse(req.params.id);
+  const parsed = z.object({
+    months: z.number().int().min(1).max(3),
+    reason: z.string().trim().min(3).max(300),
+    subscriptionId: z.uuid().optional(),
+  }).strict().safeParse(req.body);
+  if (!id.success || !parsed.success) {
+    return void res.status(400).json({ error: 'Selecciona 1, 2 o 3 meses e indica el motivo.' });
+  }
+  const { months, reason, subscriptionId } = parsed.data;
+  try {
+    const manualAccessUntil = await prisma.$transaction(async tx => {
+      const user = await tx.user.findUnique({
+        where: { id: id.data }, select: { role: true, manualAccessUntil: true },
+      });
+      if (!user || user.role === 'SUPERADMIN') return null;
+      if (user.role === 'CLIENT') {
+        if (!subscriptionId) return null;
+        const subscription = await tx.professionalSubscription.findUnique({
+          where: { id: subscriptionId, userId: id.data },
+          select: { businessName: true, category: true, description: true },
+        });
+        if (!subscription) return null;
+        const business = await tx.business.findUnique({ where: { ownerId: id.data }, select: { id: true } });
+        if (!business) await tx.business.create({
+          data: { ownerId: id.data, name: subscription.businessName, category: subscription.category, description: subscription.description },
+          select: { id: true },
+        });
+      }
+      const requestedUntil = addCalendarMonths(new Date(), months);
+      const until = user.manualAccessUntil && user.manualAccessUntil > requestedUntil
+        ? user.manualAccessUntil
+        : requestedUntil;
+      await tx.user.update({
+        where: { id: id.data, role: user.role },
+        data: { role: 'PROFESSIONAL', isSuspended: false, accessGrant: null, manualAccessUntil: until },
+        select: { id: true },
+      });
+      await recordAdminAction(tx, req.authUser!.id, 'temporary_access', 'users', id.data,
+        `${reason} · Período solicitado: ${months} ${months === 1 ? 'mes' : 'meses'} · Vence: ${until.toISOString()}`);
+      return until;
+    }, { isolationLevel: 'Serializable' });
+    if (!manualAccessUntil) return void res.status(404).json({ error: 'Selecciona una cuenta profesional o una suscripción de esa misma cuenta.' });
+    res.json({ message: 'Cuenta activa con acceso temporal.', manualAccessUntil });
+  } catch (error) {
+    if (isTransactionConflict(error) || ['P2002', 'P2025'].includes((error as { code?: string }).code ?? '')) {
+      return void res.status(409).json({ error: 'La cuenta cambió. Actualiza la lista antes de volver a intentar.' });
+    }
+    throw error;
+  }
+});
+
 router.patch('/:resource/:id/state', async (req, res) => {
   const resource = z.enum(['users', 'businesses', 'services']).safeParse(req.params.resource);
   const id = z.string().uuid().safeParse(req.params.id);
@@ -205,7 +259,10 @@ router.patch('/:resource/:id', async (req, res) => {
             throw new DeletionError(409, 'Este usuario tiene un negocio; debe conservar su rol profesional.');
           }
           const accessGrant = data.role && data.role !== user.role ? (data.role === 'PROFESSIONAL' ? 'MANUAL' : null) : undefined;
-          const changed = await tx.user.updateMany({ where: { ...where, role: { not: 'SUPERADMIN' } }, data: { ...data, accessGrant } });
+          const changed = await tx.user.updateMany({
+            where: { ...where, role: { not: 'SUPERADMIN' } },
+            data: { ...data, accessGrant, ...(data.role === 'CLIENT' ? { manualAccessUntil: null } : {}) },
+          });
           if (!changed.count) throw new DeletionError(409, 'El rol cambió. Actualiza la lista.');
           updated = await tx.user.findUnique({ where, select: userSelect });
           break;
