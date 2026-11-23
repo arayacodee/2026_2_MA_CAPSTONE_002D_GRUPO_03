@@ -1,7 +1,7 @@
 import { expect, test, type BrowserContext, type Locator, type Page } from '@playwright/test';
 
-const businessName = process.env['E2E_BUSINESS'] || 'Barberia De Prueba';
-const serviceName = process.env['E2E_SERVICE'] || 'Low fade';
+const businessName = process.env['E2E_BUSINESS'] || 'Estudio Cronos Demo';
+const serviceName = process.env['E2E_SERVICE'] || 'Atención de demostración';
 
 type Role = 'CLIENT' | 'PROFESSIONAL' | 'ADMIN';
 type SessionCookies = Awaited<ReturnType<BrowserContext['cookies']>>;
@@ -173,7 +173,7 @@ test('07 · Acceso · Restringe el panel de administración al cliente', { tag: 
   await expect(page.getByRole('heading', { name: 'Ingresa al panel' })).toBeVisible();
 });
 
-test('08 · Flujo · El cliente reserva y consulta su nueva reserva', { tag: '@flujo' }, async ({ page }) => {
+test('08 · Flujo · La reserva aparece en ambas sesiones', { tag: '@flujo' }, async ({ page, browser }) => {
   test.setTimeout(90_000);
   await signIn(page, 'CLIENT');
   await openBusiness(page);
@@ -209,57 +209,78 @@ test('08 · Flujo · El cliente reserva y consulta su nueva reserva', { tag: '@f
   }
 
   if (!selected) throw new Error('El servicio de prueba necesita un horario libre en los próximos catorce días.');
-  await page.getByRole('button', { name: selected.time, exact: true }).click();
-  await expect(page.getByRole('heading', { name: /^Confirma tu / })).toBeVisible();
-  const [creation] = await Promise.all([
-    page.waitForResponse(response => new URL(response.url()).pathname === '/api/reservations'
-      && response.request().method() === 'POST'),
-    page.getByRole('button', { name: /^Confirmar / }).click(),
-  ]);
-  expect(creation.status(), 'La reserva debe quedar creada en la base de datos').toBe(201);
-  const created = await creation.json() as { id: string; serviceId: string; startsAt: string; status: string };
-  expect(created.id).toBeTruthy();
-  expect(created).toMatchObject({ serviceId, status: 'CONFIRMED' });
-  await test.info().attach('Reserva creada', {
-    body: JSON.stringify({ id: created.id, serviceId, startsAt: created.startsAt, ...selected }, null, 2),
-    contentType: 'application/json',
+  const professionalContext = await browser.newContext({
+    baseURL: new URL(page.url()).origin, locale: 'es-CL', timezoneId: 'America/Santiago',
   });
-  await expect(page.getByRole('status').filter({
-    hasText: `Reserva confirmada para ${selected.time}.`,
-  })).toBeVisible();
+  try {
+    const professional = await professionalContext.newPage();
+    await signIn(professional, 'PROFESSIONAL');
+    await professional.goto('/dashboard');
+    await expect(professional.getByRole('heading', { name: businessName, exact: true })).toBeVisible();
 
-  const [response] = await Promise.all([
-    page.waitForResponse(response => new URL(response.url()).pathname === '/api/reservations' && response.request().method() === 'GET'),
-    page.getByRole('navigation', { name: 'Navegación principal' })
-      .getByRole('link', { name: 'Mis reservas' }).click(),
-  ]);
-  expect(response.ok(), 'La consulta de reservas del cliente debe finalizar correctamente').toBe(true);
-  const reservations = await response.json() as { id: string; serviceId: string; startsAt: string }[];
-  expect(reservations).toEqual(expect.arrayContaining([
-    expect.objectContaining({ id: created.id, serviceId, startsAt: created.startsAt }),
-  ]));
-  await expect(page).toHaveURL(/\/my-reservations$/);
-  await expect(page.getByRole('heading', { name: 'Mis reservas', exact: true })).toBeVisible();
-  const dateLabel = new Intl.DateTimeFormat('es-CL', {
-    dateStyle: 'full', timeZone: selected.timezone,
-  }).format(new Date(created.startsAt));
-  const card = page.getByRole('article')
-    .filter({ has: page.getByRole('heading', { name: serviceName, exact: true }) })
-    .filter({ hasText: dateLabel })
-    .filter({ hasText: selected.time });
-  await expect(card).toHaveCount(1);
-  await expect(card.getByText(businessName, { exact: true })).toBeVisible();
-  await expect(card.getByText('Confirmada', { exact: true })).toBeVisible();
-  await card.scrollIntoViewIfNeeded();
+    await page.getByRole('button', { name: selected.time, exact: true }).click();
+    await expect(page.getByRole('heading', { name: /^Confirma tu / })).toBeVisible();
+    const [creation] = await Promise.all([
+      page.waitForResponse(response => new URL(response.url()).pathname === '/api/reservations'
+        && response.request().method() === 'POST'),
+      page.getByRole('button', { name: /^Confirmar / }).click(),
+    ]);
+    expect(creation.status(), 'La reserva debe quedar creada en la base de datos').toBe(201);
+    const created = await creation.json() as { id: string; serviceId: string; startsAt: string; status: string };
+    expect(created.id).toBeTruthy();
+    expect(created).toMatchObject({ serviceId, status: 'CONFIRMED' });
+    const agenda = professional.getByRole('region', { name: /^Próximas / });
+    const agendaDate = new Intl.DateTimeFormat('es-CL', {
+      dateStyle: 'medium', timeZone: selected.timezone,
+    }).format(new Date(created.startsAt));
+    await expect(agenda.getByRole('article').filter({ hasText: agendaDate }).filter({ hasText: selected.time })).toBeVisible();
+    await test.info().attach('Reserva visible en la agenda profesional', {
+      body: await professional.screenshot(), contentType: 'image/png',
+    });
+    await test.info().attach('Reserva creada', {
+      body: JSON.stringify({ id: created.id, serviceId, startsAt: created.startsAt, ...selected }, null, 2),
+      contentType: 'application/json',
+    });
+    await expect(page.getByRole('status').filter({
+      hasText: `Reserva confirmada para ${selected.time}.`,
+    })).toBeVisible();
+
+    const [response] = await Promise.all([
+      page.waitForResponse(response => new URL(response.url()).pathname === '/api/reservations' && response.request().method() === 'GET'),
+      page.getByRole('navigation', { name: 'Navegación principal' })
+        .getByRole('link', { name: 'Mis reservas' }).click(),
+    ]);
+    expect(response.ok(), 'La consulta de reservas del cliente debe finalizar correctamente').toBe(true);
+    const reservations = await response.json() as { id: string; serviceId: string; startsAt: string }[];
+    expect(reservations).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: created.id, serviceId, startsAt: created.startsAt }),
+    ]));
+    await expect(page).toHaveURL(/\/my-reservations$/);
+    await expect(page.getByRole('heading', { name: 'Mis reservas', exact: true })).toBeVisible();
+    const dateLabel = new Intl.DateTimeFormat('es-CL', {
+      dateStyle: 'full', timeZone: selected.timezone,
+    }).format(new Date(created.startsAt));
+    const card = page.getByRole('article')
+      .filter({ has: page.getByRole('heading', { name: serviceName, exact: true }) })
+      .filter({ hasText: dateLabel })
+      .filter({ hasText: selected.time });
+    await expect(card).toHaveCount(1);
+    await expect(card.getByText(businessName, { exact: true })).toBeVisible();
+    await expect(card.getByText('Confirmada', { exact: true })).toBeVisible();
+    await card.scrollIntoViewIfNeeded();
+  } finally {
+    await professionalContext.close();
+  }
 });
 
-test('09 · Flujo · El profesional sin negocio accede a crear su perfil', { tag: '@flujo' }, async ({ page }) => {
+test('09 · Flujo · El profesional consulta sus atenciones e indicadores', { tag: '@flujo' }, async ({ page }) => {
   await signIn(page, 'PROFESSIONAL');
-  await expect(page).toHaveURL(/\/professional\/setup$/);
-  await expect(page.getByRole('heading', { name: 'Crea tu espacio en Cronos' })).toBeVisible();
-  await expect(page.getByRole('textbox', { name: 'Nombre profesional o negocio' })).toBeVisible();
-  await expect(page.getByRole('textbox', { name: 'Descripción', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Crear mi perfil', exact: true })).toBeEnabled();
+  await page.goto('/dashboard');
+  await expect(page.getByRole('heading', { name: businessName, exact: true })).toBeVisible();
+  await page.getByRole('navigation', { name: 'Navegación principal' }).getByRole('link', { name: 'Historial', exact: true }).click();
+  await expect(page).toHaveURL(/\/dashboard\/history$/);
+  await expect(page.getByRole('cell', { name: serviceName, exact: true }).first()).toBeVisible();
+  await expect(page.getByText('Valor de servicios del mes', { exact: true })).toBeVisible();
 });
 
 test('10 · Flujo · El superadmin consulta la ficha del cliente de prueba', { tag: '@flujo' }, async ({ page }) => {
@@ -267,7 +288,8 @@ test('10 · Flujo · El superadmin consulta la ficha del cliente de prueba', { t
   await signIn(page, 'ADMIN');
   await expect(page).toHaveURL(/\/admin$/);
   await expect(page.getByRole('heading', { name: 'Administración de Cronos' })).toBeVisible();
-  await page.getByRole('searchbox', { name: 'Buscar en esta página' }).fill(user);
+  await page.getByRole('searchbox', { name: 'Buscar en toda la sección' }).fill(user);
+  await page.getByRole('button', { name: 'Buscar', exact: true }).click();
   const record = page.getByRole('article').filter({ hasText: user });
   await record.getByRole('button', { name: /^Gestionar / }).click();
   await record.getByText('Datos del registro', { exact: true }).click();

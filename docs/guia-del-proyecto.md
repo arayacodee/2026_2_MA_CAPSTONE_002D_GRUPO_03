@@ -26,7 +26,9 @@ Los perfiles permiten elegir Servicios generales (predeterminado), Bienestar y t
 
 ## Habilitar la cuenta compartida de administración
 
-El panel ofrece eliminación permanente con confirmación para usuarios (excepto superadmins), negocios, servicios, horarios, reservas, atenciones y evidencias. Borrar un usuario incluye sus negocios y reservas como cliente; borrar un negocio o servicio incluye sus reservas e historial. Borrar una atención elimina también su reserva vinculada. Horarios y evidencias se eliminan individualmente. Las cuentas de otros usuarios se conservan. Un usuario eliminado puede volver a registrarse con Google como cliente nuevo; eliminar no equivale a bloquearlo. Las eliminaciones de datos se realizan en una transacción serializable, sin migraciones adicionales. Las imágenes se limpian en Cloudinary después del commit; si falla la limpieza, el panel muestra una advertencia y el servidor registra los identificadores pendientes para revisión.
+El profesional administra su propio negocio desde **Mi agenda** e **Historial**. El superadmin utiliza **Administración** para gestionar registros globales, revisar suscripciones y consultar la bitácora. La búsqueda se aplica en el servidor antes de paginar.
+
+El superadmin puede suspender cuentas, archivar negocios y desactivar servicios indicando un motivo. Puede revertir estas acciones desde el panel. La eliminación permanente se reserva para cuentas, negocios y servicios sin historial, así como horarios o evidencias puntuales. Las reservas y atenciones se conservan. La bitácora registra la cuenta administradora, el registro, la acción, la fecha y el motivo cuando corresponde.
 
 La cuenta compartida ingresa por `/admin/login` con el identificador `superadmin@cronos` y la contraseña configurada para el equipo. El identificador se usa exclusivamente para el inicio de sesión de administración.
 
@@ -45,11 +47,14 @@ Las elevaciones a superadmin solo se realizan con el comando de servidor, nunca 
 - Una reserva confirmada puede completarse desde su hora de inicio. Completar crea una única atención; la fecha de atención corresponde al inicio de la reserva y `createdAt` registra cuándo se ingresó al sistema.
 - Las reservas completadas no pueden cancelarse. Repetir una cancelación o completar una reserva ya atendida devuelve el resultado existente.
 - La creación de reservas usa aislamiento serializable y reintentos; completar y cancelar usan actualizaciones condicionales dentro de transacciones.
-- Las fechas se muestran en la zona horaria del negocio. El dashboard actualiza las listas al pasar el tiempo.
+- Las fechas se muestran en la zona horaria del negocio. **Mi agenda** consulta reservas cada cinco segundos y ofrece **Actualizar agenda**.
+- Cada profesional tiene un perfil de negocio. Los servicios del mismo negocio comparten una agenda y no se pueden reservar en horarios superpuestos.
+- Las reservas nuevas guardan precio, duración y nombre del servicio. Si una reserva anterior tenía un monto guardado en su atención, se conserva. Los precios anteriores desconocidos se muestran como **Sin registro**.
+- El profesional puede reprogramar reservas futuras conservando el registro del cambio, marcar inasistencia al terminar el horario y bloquear fechas para nuevas reservas. Los bloqueos conservan las reservas existentes.
 
 ## Historial de atenciones
 
-En **Editar perfil** se pueden reemplazar o eliminar la foto de perfil y la portada. También se puede cancelar una selección antes de subirla. Eliminar limpia la referencia del negocio y solicita la eliminación en Cloudinary; si Cloudinary falla, se registra el fallo y el perfil queda sin imagen. La vitrina del inicio presenta fotos cuadradas en tarjetas de hasta 280 píxeles de ancho.
+En **Editar perfil** se pueden reemplazar o eliminar la foto de perfil y la portada. También se puede cancelar una selección antes de subirla. La vitrina del inicio adapta sus tarjetas al tamaño de pantalla.
 
 Desde el panel profesional, abrir **Historial de atenciones** (`/dashboard/history`). Permite consultar atenciones, editar notas de hasta 1500 caracteres y agregar imágenes JPEG, PNG o WebP de hasta 5 MB, con descripción opcional de hasta 300 caracteres. Cada imagen puede abrirse o eliminarse.
 
@@ -62,7 +67,7 @@ La API requiere sesión profesional y restringe todas las operaciones al negocio
 | POST | `/api/sessions/:id/evidences` | Agregar `image` y `caption` mediante multipart |
 | DELETE | `/api/sessions/evidences/:id` | Eliminar imagen de Cloudinary y su referencia |
 
-Si falla el registro de una imagen en la base, la API intenta limpiar la subida en Cloudinary. Las evidencias no se muestran en el perfil público del negocio.
+Si falla el registro de una imagen en la base, la API intenta limpiar la subida en Cloudinary. Las evidencias nuevas se guardan con entrega autenticada y se abren mediante enlaces que caducan en 30 minutos. Recargar el historial renueva los enlaces. Las imágenes subidas con la configuración anterior se ocultan hasta que se migren a entrega autenticada.
 
 ## Verificación
 
@@ -92,7 +97,9 @@ Las pruebas cubren estados de reservas, permisos del historial, sesión, consult
 
 Las cuentas anteriores de Google conservan sus datos y permisos. El superadmin puede crear o reemplazar su contraseña mediante **Usuarios → Cambiar contraseña**, con confirmación y mínimo 8 caracteres. Este endpoint requiere superadmin, guarda únicamente un hash y protege las cuentas de administración (su acceso se configura mediante `.env`). Se retiró la creación de contraseña desde Mis datos y su endpoint. La recuperación de contraseñas por correo queda pendiente.
 
-`/companies` presenta una suscripción de **$7.900 CLP mensuales** y permite guardar una solicitud de empresa. En desarrollo, **Crear perfil sin pago · prueba** activa el rol profesional y crea el negocio desde la solicitud guardada, dentro de una transacción; si ya existe el negocio, lo conserva. Abre el dashboard con la sesión actualizada. Esta activación no cobra ni registra una suscripción pagada y está bloqueada cuando `NODE_ENV=production`. La integración real de Webpay y la activación tras pago confirmado quedan pendientes.
+`/companies` presenta una suscripción de **$7.900 CLP mensuales** y permite guardar una solicitud de empresa antes de iniciar el pago en Mercado Pago. La suscripción cubre el acceso del negocio. El cliente reserva el servicio sin pagar en Cronos. El período confirmado y los accesos manuales, previos o de demostración determinan si el negocio recibe nuevas reservas. El profesional con un plan vencido puede seguir gestionando las reservas existentes y el historial.
+
+Para preparar la defensa, ejecutar `npm run demo:prepare` desde `backend`, con la base compartida configurada y las cuentas de prueba en `frontend/.env.e2e`. El comando prepara **Estudio Cronos Demo**, un servicio, disponibilidad y reservas de ejemplo. Abrir la sesión profesional en un equipo y reservar como cliente desde el otro. La reserva aparecerá en **Mi agenda**. Usar una reserva pasada del mismo negocio para registrar la atención y consultar **Historial**. El superadmin puede revisar el resultado desde **Administración**.
 
 ### Trabajo en equipo
 

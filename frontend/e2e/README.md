@@ -20,7 +20,7 @@ El negocio y el servicio indicados en `E2E_BUSINESS` y `E2E_SERVICE` deben exist
 
 Cada ejecución del caso 08 crea una reserva real para el cliente de prueba y la conserva. Comprueba la respuesta 201, registra su identificador y verifica que la misma reserva aparece en la consulta de la API y en Mis reservas, con su servicio, negocio, fecha, hora y estado confirmado. Las ejecuciones posteriores eligen el siguiente horario libre.
 
-El caso 09 utiliza la cuenta profesional de prueba en su estado actual, todavía sin negocio vinculado, para verificar la redirección al formulario de creación de perfil.
+Preparar la cuenta profesional antes de ejecutar la suite con `npm run demo:prepare` desde `backend`. En `.env.e2e`, seleccionar **Estudio Cronos Demo** y **Atención de demostración**. El caso 08 abre simultáneamente la agenda profesional para comprobar que recibe la nueva reserva. El caso 09 consulta el historial y los indicadores del mismo negocio.
 
 ## Ejecución
 
@@ -48,8 +48,8 @@ Para seleccionar una categoría completa, usar `npm run test:e2e -- --grep @vali
 | 05 | Validación | Usar la cuenta del cliente con contraseña incorrecta | Respuesta 401, mensaje de credenciales incorrectas y sesión de cliente sin iniciar. |
 | 06 | Acceso | Intentar reservar como visitante | Redirección al ingreso con destino de regreso a la reserva. |
 | 07 | Acceso | Intentar entrar a administración como cliente | Redirección al acceso de administración conservando la sesión de cliente. |
-| 08 | Flujo por rol | Reservar y consultar como cliente | Reserva creada con respuesta 201 y el mismo identificador en la consulta de Mis reservas. Tarjeta visible con servicio, negocio, fecha, hora y estado confirmado. |
-| 09 | Flujo por rol | Ingresar como profesional sin negocio | Formulario de creación del perfil con sus campos y botón disponibles. |
+| 08 | Flujo por rol | Reservar como cliente con la agenda profesional abierta | La reserva aparece en ambas sesiones, sin recargar la agenda. |
+| 09 | Flujo por rol | Ingresar como profesional y consultar el historial | Atención de prueba e indicador del valor mensual visibles. |
 | 10 | Flujo por rol | Ingresar como superadmin | Búsqueda del cliente de prueba y consulta de su ficha. |
 
 ## Evidencia visual
