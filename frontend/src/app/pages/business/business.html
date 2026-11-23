@@ -82,6 +82,9 @@
 
     <section class="services-section" aria-labelledby="services-title">
       <h2 id="services-title">{{ labels().services }}</h2>
+      @if (currentBusiness.canBook === false) {
+        <p class="empty-state">Este negocio no está recibiendo nuevas reservas.</p>
+      }
 
       @if (services().length) {
         <div class="services-grid">
@@ -99,11 +102,13 @@
               </div>
               <div class="service-card-footer">
                 <strong class="service-price">{{ formatPrice(service.price) }}</strong>
+                @if (currentBusiness.canBook !== false && (!auth.currentUser() || auth.isClient())) {
                 <a class="service-book"
                   [routerLink]="['/booking', service.id]"
                   [attr.aria-label]="labels().reserve + ' · ' + service.name">
                   {{ labels().reserve }} <span aria-hidden="true">→</span>
                 </a>
+                }
               </div>
             </article>
           }

@@ -75,8 +75,15 @@ router.post('/checkout', adminLoginLimit(), async (req, res) => {
   }
 });
 router.get('/', async (req, res) => {
-  const subscriptions = await prisma.professionalSubscription.findMany({ where: { userId: req.authUser!.id, OR: [{ providerId: { not: null } }, { status: 'creating' }] }, orderBy: { createdAt: 'desc' }, take: 1 });
-  res.json({ subscriptions: subscriptions.map(({ id, status, paidUntil, businessName }) => ({ id, status, paidUntil, businessName })) });
+  const userId = req.authUser!.id;
+  const [subscriptions, user] = await Promise.all([
+    prisma.professionalSubscription.findMany({ where: { userId, OR: [{ providerId: { not: null } }, { status: 'creating' }] }, orderBy: { createdAt: 'desc' }, take: 1 }),
+    prisma.user.findUnique({ where: { id: userId }, select: { manualAccessUntil: true } }),
+  ]);
+  res.json({
+    manualAccessUntil: user?.manualAccessUntil ?? null,
+    subscriptions: subscriptions.map(({ id, status, paidUntil, businessName }) => ({ id, status, paidUntil, businessName })),
+  });
 });
 router.post('/refresh', adminLoginLimit(), async (req, res) => {
   if (!paymentsConfigured()) return void res.sendStatus(503);

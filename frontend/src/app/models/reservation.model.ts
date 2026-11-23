@@ -6,7 +6,8 @@ export type ReservationStatus =
   | 'PENDING'
   | 'CONFIRMED'
   | 'COMPLETED'
-  | 'CANCELLED';
+  | 'CANCELLED'
+  | 'NO_SHOW';
 
 export interface Reservation {
   id: string;
@@ -17,6 +18,9 @@ export interface Reservation {
   startsAt: string;
   endsAt: string;
   status: ReservationStatus;
+  bookedServiceName?: string | null;
+  bookedDurationMin?: number | null;
+  bookedPrice?: string | number | null;
 
   createdAt: string;
   updatedAt: string;
@@ -50,7 +54,7 @@ export interface ClientSession {
 export interface SessionEvidence {
   id: string;
   sessionId: string;
-  imageUrl: string;
+  imageUrl: string | null;
   caption: string | null;
   createdAt: string;
 }

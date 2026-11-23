@@ -27,4 +27,11 @@ describe('AuthService', () => {
     await initialized;
     expect(auth.isLoggedIn()).toBe(false);
   });
+  it('mantiene el superadmin fuera del rol profesional', async () => {
+    const initialized = auth.initialize();
+    http.expectOne(`${environment.apiUrl}/api/auth/me`).flush({ user: { ...user, role: 'SUPERADMIN' } });
+    await initialized;
+    expect(auth.isSuperadmin()).toBe(true);
+    expect(auth.isProfessional()).toBe(false);
+  });
 });

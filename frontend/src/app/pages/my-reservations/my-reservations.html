@@ -25,7 +25,11 @@
     </p>
   }
 
-  @if (!loading() && reservations().length === 0) {
+  @if (refreshError()) {
+    <p class="message error" role="status">{{ refreshError() }}</p>
+  }
+
+  @if (!loading() && !refreshError() && reservations().length === 0) {
     <section class="empty-state">
       <h2>Aún no tienes reservas</h2>
       <p>Explora los servicios disponibles en Cronos.</p>
@@ -44,19 +48,19 @@
       <article
         class="reservation-card"
         [class.cancelled]="
-          reservation.status === 'CANCELLED'
+          reservation.status === 'CANCELLED' || reservation.status === 'NO_SHOW'
         "
       >
         <div class="reservation-info">
           <div class="reservation-heading">
             <h2>
-              {{ reservation.service?.name || 'Servicio' }}
+              {{ reservation.bookedServiceName || reservation.service?.name || 'Servicio' }}
             </h2>
 
             <span
               class="status"
               [class.status-cancelled]="
-                reservation.status === 'CANCELLED'
+                reservation.status === 'CANCELLED' || reservation.status === 'NO_SHOW'
               "
             >
               {{ statusLabel(reservation.status) }}
@@ -81,13 +85,13 @@
             @if (reservation.service) {
               <p>
                 <strong>Duración:</strong>
-                {{ reservation.service.durationMin }}
+                {{ reservation.bookedDurationMin ?? reservation.service.durationMin }}
                 minutos
               </p>
 
               <p>
                 <strong>Precio:</strong>
-                {{ formatPrice(reservation.service.price) }}
+                {{ reservation.bookedPrice != null ? formatPrice(reservation.bookedPrice) : 'Sin registro' }}
               </p>
             }
           </div>

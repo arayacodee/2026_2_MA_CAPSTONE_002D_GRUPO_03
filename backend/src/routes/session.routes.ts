@@ -4,7 +4,7 @@ import { uploadBusinessImage } from "../middleware/upload.middleware.js";
 import { getSessions, getAttentionMetrics, updateSession, addEvidence, deleteEvidence } from "../controllers/session.controller.js";
 
 const router = Router();
-router.use(authenticate, requireRole("PROFESSIONAL", "SUPERADMIN"));
+router.use(authenticate, requireRole("PROFESSIONAL"));
 router.get("/", getSessions);
 router.get("/metrics", getAttentionMetrics);
 router.patch("/:id", updateSession);

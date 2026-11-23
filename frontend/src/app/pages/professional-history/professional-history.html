@@ -24,7 +24,7 @@
           @for (session of sessions(); track session.id) {
             <tr><td><strong>{{ session.client?.name || session.client?.email || labels().person }}</strong>
               @if (session.client?.name) { <small>{{ session.client?.email }}</small> }</td>
-              <td>{{ session.reservation?.service?.name || labels().service }}</td><td class="date">{{ formatDate(session) }}</td>
+              <td>{{ session.reservation?.bookedServiceName || session.reservation?.service?.name || labels().service }}</td><td class="date">{{ formatDate(session) }}</td>
               <td class="price">{{ formatPrice(session.amount) }}</td>
               <td><span class="note-preview">{{ session.notes || 'Sin notas' }}</span></td><td>{{ session.evidences?.length || 0 }} imágenes</td>
               <td><button type="button" (click)="detail().openSession(session)" [attr.aria-label]="'Ver detalle de atención de ' + (session.client?.name || session.client?.email || labels().person)">Ver detalle ↗</button></td>

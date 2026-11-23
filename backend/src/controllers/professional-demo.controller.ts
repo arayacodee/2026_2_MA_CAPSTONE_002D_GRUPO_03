@@ -11,7 +11,7 @@ export async function activateProfessionalDemo(req: Request, res: Response) {
     const result = await prisma.$transaction(async tx => {
       const application = await tx.professionalApplication.findUnique({ where: { userId: req.authUser!.id } });
       if (!application) return null;
-      const user = await tx.user.update({ where: { id: req.authUser!.id, role: { not: 'SUPERADMIN' } }, data: { role: 'PROFESSIONAL' }, select: privateUserSelect });
+      const user = await tx.user.update({ where: { id: req.authUser!.id, role: { not: 'SUPERADMIN' } }, data: { role: 'PROFESSIONAL', accessGrant: 'DEMO' }, select: privateUserSelect });
       const existing = await tx.business.findFirst({ where: { ownerId: user.id } });
       const business = existing ?? await tx.business.create({ data: { ownerId: user.id, name: application.businessName, category: application.category, description: application.description } });
       return { user, business, demo: true, charged: false };

@@ -3,6 +3,7 @@ import { businessLabels, attentionModes } from '../../models/business-category';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { ApiService } from '../../core/services/api.service';
+import { AuthService } from '../../core/services/auth.service';
 import { Business as BusinessModel } from '../../models/business.model';
 import { Service } from '../../models/service.model';
 import { BusinessGallery } from '../../components/business-gallery';
@@ -25,7 +26,8 @@ export class Business implements OnInit {
 
   constructor(
     private readonly route: ActivatedRoute,
-    private readonly api: ApiService
+    private readonly api: ApiService,
+    readonly auth: AuthService,
   ) {}
 
   formatPrice(price: Service['price']): string {

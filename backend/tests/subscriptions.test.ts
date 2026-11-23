@@ -3,9 +3,22 @@ import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
 Object.assign(process.env, { DATABASE_URL: 'postgresql://test:test@localhost/test', GOOGLE_CLIENT_ID: 'test', AUTH_SECRET: 'test-secret-with-at-least-32-characters', CLOUDINARY_CLOUD_NAME: 'test', CLOUDINARY_API_KEY: 'test', CLOUDINARY_API_SECRET: 'test', MP_ACCESS_TOKEN: 'test', MP_WEBHOOK_SECRET: 'secret', MP_RETURN_URL: 'https://example.com/companies?payment=return', MP_WEBHOOK_URL: 'https://example.com/api/subscriptions/webhook' });
 const { validWebhook, validPlan, invoicePeriodEnd } = await import('../src/lib/mercado-pago.js');
-const { syncSubscription } = await import('../src/lib/subscriptions.js');
+const { canReceiveBookings, syncSubscription } = await import('../src/lib/subscriptions.js');
 const { prisma } = await import('../src/lib/prisma.js');
 const remote = { id: 'provider', external_reference: 'local', status: 'authorized', init_point: 'https://www.mercadopago.cl/subscriptions/checkout', auto_recurring: { frequency: 1, frequency_type: 'months', transaction_amount: 7900, currency_id: 'CLP' } };
+
+test('el catálogo y la agenda usan el mismo período o habilitación guardados en la base', () => {
+  const owner = { role: 'PROFESSIONAL' as const, isSuspended: false, accessGrant: null, manualAccessUntil: null, subscriptions: [{ paidUntil: new Date(0) }] };
+  const profile = { isArchived: false, owner };
+  assert.equal(canReceiveBookings(profile), false);
+  assert.equal(canReceiveBookings({ ...profile, owner: { ...owner, manualAccessUntil: new Date(0) } }), false);
+  assert.equal(canReceiveBookings({ ...profile, owner: { ...owner, manualAccessUntil: new Date(Date.now() + 60_000) } }), true);
+  assert.equal(canReceiveBookings({ ...profile, owner: { ...owner, accessGrant: 'DEMO' } }), true);
+  const paidOwner = { ...owner, subscriptions: [{ paidUntil: new Date(Date.now() + 86_400_000) }] };
+  assert.equal(canReceiveBookings({ ...profile, owner: paidOwner }), true);
+  assert.equal(canReceiveBookings({ ...profile, isArchived: true, owner: paidOwner }), false);
+  assert.equal(canReceiveBookings({ ...profile, owner: { ...paidOwner, isSuspended: true } }), false);
+});
 
 test('firma rechaza identificadores manipulados, secretos incorrectos y firmas incompletas', () => {
   const signature = `ts=123,v1=${createHmac('sha256', 'secret').update('id:abc;request-id:request;ts:123;').digest('hex')}`;

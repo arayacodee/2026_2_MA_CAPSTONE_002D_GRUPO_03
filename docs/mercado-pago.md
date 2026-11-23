@@ -77,11 +77,12 @@ moneda, importe y pagos. Cada factura se registra una sola vez y el período se
 calcula desde su fecha de débito. Los reembolsos retiran el período correspondiente.
 La cancelación mantiene lo ya pagado y libera la posibilidad de contratar nuevamente.
 
-Las cuentas profesionales anteriores, que no tienen registros de facturación,
-conservan su acceso. Con pagos configurados, los profesionales con registros
-vencidos conservan lectura de sus datos y no pueden modificar el negocio ni
-recibir reservas nuevas. Cancelar reservas existentes sigue permitido.
-La integración no oculta el perfil público de un negocio vencido.
+La base de datos registra las habilitaciones previas, manuales y de demostración.
+Un profesional sin habilitación y con el período pagado vencido puede consultar
+sus datos y gestionar reservas ya existentes. Su perfil puede seguir visible,
+con un aviso de que dejó de recibir nuevas reservas y sin botón para reservar.
+La disponibilidad y la confirmación verifican ese mismo estado aunque los
+equipos tengan configuraciones de Mercado Pago distintas.
 
 Una creación con respuesta ambigua queda reservada para esa cuenta y se intenta
 recuperar por referencia externa, sin emitir otro mandato recurrente. Si el proveedor

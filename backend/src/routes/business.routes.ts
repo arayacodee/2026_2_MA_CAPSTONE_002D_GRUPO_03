@@ -15,6 +15,7 @@ import {
 import {
   authenticate,
   requireRole,
+  requireProfessionalAccess,
 } from "../middleware/auth.middleware.js";
 
 import {
@@ -24,10 +25,12 @@ import {
 const router = Router();
 import { getBusinessPhotos, addBusinessPhoto, deleteBusinessPhoto } from '../controllers/business-gallery.controller.js';
 router.get('/:id/photos', getBusinessPhotos);
-router.post('/me/photos', authenticate, requireRole('PROFESSIONAL', 'SUPERADMIN'), uploadBusinessImage, addBusinessPhoto);
-router.delete('/me/photos/:id', authenticate, requireRole('PROFESSIONAL', 'SUPERADMIN'), deleteBusinessPhoto);
-router.delete("/me/avatar", authenticate, requireRole("PROFESSIONAL", "SUPERADMIN"), deleteBusinessAvatar);
-router.delete("/me/cover", authenticate, requireRole("PROFESSIONAL", "SUPERADMIN"), deleteBusinessCover);
+router.post('/me/photos', authenticate, requireRole('PROFESSIONAL'), requireProfessionalAccess, uploadBusinessImage, addBusinessPhoto);
+router.delete('/me/photos/:id', authenticate, requireRole('PROFESSIONAL'), requireProfessionalAccess, deleteBusinessPhoto);
+router.delete("/me/avatar", authenticate, requireRole("PROFESSIONAL"),
+  requireProfessionalAccess, deleteBusinessAvatar);
+router.delete("/me/cover", authenticate, requireRole("PROFESSIONAL"),
+  requireProfessionalAccess, deleteBusinessCover);
 
 
 // Rutas públicas
@@ -42,14 +45,15 @@ router.get(
 router.get(
   "/me",
   authenticate,
-  requireRole("PROFESSIONAL", "SUPERADMIN"),
+  requireRole("PROFESSIONAL"),
   getMyBusiness
 );
 
 router.patch(
   "/me",
   authenticate,
-  requireRole("PROFESSIONAL", "SUPERADMIN"),
+  requireRole("PROFESSIONAL"),
+  requireProfessionalAccess,
   updateMyBusiness
 );
 
@@ -58,7 +62,8 @@ router.patch(
 router.put(
   "/me/avatar",
   authenticate,
-  requireRole("PROFESSIONAL", "SUPERADMIN"),
+  requireRole("PROFESSIONAL"),
+  requireProfessionalAccess,
   uploadBusinessImage,
   updateBusinessAvatar
 );
@@ -68,7 +73,8 @@ router.put(
 router.put(
   "/me/cover",
   authenticate,
-  requireRole("PROFESSIONAL", "SUPERADMIN"),
+  requireRole("PROFESSIONAL"),
+  requireProfessionalAccess,
   uploadBusinessImage,
   updateBusinessCover
 );
@@ -85,7 +91,8 @@ router.get(
 router.post(
   "/",
   authenticate,
-  requireRole("PROFESSIONAL", "SUPERADMIN"),
+  requireRole("PROFESSIONAL"),
+  requireProfessionalAccess,
   createBusiness
 );
 

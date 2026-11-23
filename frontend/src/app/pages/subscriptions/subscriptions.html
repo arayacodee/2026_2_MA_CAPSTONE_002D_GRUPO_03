@@ -1,12 +1,27 @@
 <main class="subscriptions-page">
   <header class="page-heading">
     <div><p class="eyebrow">TU EMPRESA EN CRONOS</p><h1>Mi suscripción</h1><p>Revisa el estado de tu plan y administra su renovación.</p></div>
-    <button class="secondary" type="button" [disabled]="loading() || busy() || !available()" (click)="refresh()">{{ busy() ? 'Actualizando…' : 'Actualizar estado' }}</button>
+    <button class="secondary" type="button" [disabled]="loading() || busy()" (click)="refresh()">{{ busy() ? 'Actualizando…' : 'Actualizar estado' }}</button>
   </header>
   @if (error()) { <p class="notice error" role="alert">{{ error() }}</p> }
   @if (message()) { <p class="notice" role="status">{{ message() }}</p> }
   @if (loading()) { <div class="empty" role="status">Consultando tu suscripción…</div> }
   @else {
+    @if (manualAccessUntil(); as until) {
+      <article class="subscription-card">
+        <div class="card-heading">
+          <h2>Acceso temporal</h2>
+          <span class="status" [class.active]="manualAccessActive()">{{ manualAccessActive() ? 'Vigente' : 'Vencido' }}</span>
+        </div>
+        <dl>
+          <div><dt>Vencimiento</dt><dd>{{ until | date:'dd/MM/yyyy HH:mm' }}</dd></div>
+          <div><dt>Renovación</dt><dd>Sin renovación automática</dd></div>
+        </dl>
+        @if (manualAccessActive() && auth.isProfessional()) {
+          <div class="card-actions"><a class="primary" routerLink="/dashboard">Ir al panel de mi empresa</a></div>
+        }
+      </article>
+    }
     @for (subscription of subscriptions(); track subscription.id) {
       <article class="subscription-card">
         <div class="card-heading"><div><p class="eyebrow">PLAN PROFESIONAL</p><h2>{{ subscription.businessName || 'Tu empresa' }}</h2></div><span class="status" [class.active]="paid(subscription)" role="status">{{ label(subscription) }}</span></div>
@@ -26,7 +41,9 @@
         }
       </article>
     } @empty {
-      <section class="empty"><h2>No tienes suscripciones</h2><p>Las suscripciones son para empresas. Puedes agendar como cliente sin contratar un plan.</p><a class="primary" routerLink="/companies">Registrar una empresa</a></section>
+      @if (!manualAccessActive()) {
+        <section class="empty"><h2>No tienes una suscripción de pago</h2><a class="primary" routerLink="/companies">{{ auth.isProfessional() ? 'Consultar el plan profesional' : 'Registrar una empresa' }}</a></section>
+      }
     }
   }
 </main>

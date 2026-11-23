@@ -10,6 +10,29 @@ describe('Administración', () => {
     http = TestBed.inject(HttpTestingController);
   });
   afterEach(() => http.verify());
+  it('reactiva al profesional de la suscripción con el período seleccionado', () => {
+    const fixture = TestBed.createComponent(Admin);
+    const admin = fixture.componentInstance;
+    http.expectOne(req => req.url.endsWith('/admin/users')).flush({ items: [], hasMore: false });
+    admin.change(admin.sections.find(section => section.key === 'subscriptions')!);
+    const subscription = { id: 'billing', businessName: 'Estudio', user: { id: 'professional', role: 'CLIENT', isSuspended: true } };
+    http.expectOne(req => req.url.endsWith('/admin/subscriptions')).flush({ items: [subscription], hasMore: false });
+    admin.toggleRecord(subscription);
+    fixture.detectChanges();
+    const root: HTMLElement = fixture.nativeElement;
+    Array.from(root.querySelectorAll('button')).find(button => button.textContent?.trim() === 'Reactivar con acceso temporal')!.click();
+    fixture.detectChanges();
+    const form = root.querySelector<HTMLFormElement>('form.editor')!;
+    expect(form.textContent).toContain('La cuenta pasará a profesional');
+    form.querySelector('select')!.value = '2';
+    form.querySelector('input')!.value = 'Extensión autorizada';
+    form.dispatchEvent(new Event('submit', { cancelable: true }));
+    const request = http.expectOne(req => req.method === 'PATCH' && req.url.endsWith('/admin/users/professional/temporary-access'));
+    expect(request.request.body).toEqual({ months: 2, reason: 'Extensión autorizada', subscriptionId: 'billing' });
+    request.flush({ message: 'Cuenta activa con acceso temporal.' });
+    http.expectOne(req => req.url.endsWith('/admin/subscriptions')).flush({ items: [], hasMore: false });
+    expect(admin.grantingAccess()).toBeNull();
+  });
   it('muestra una ficha de usuario con etiquetas y solo los campos previstos', () => {
     const fixture = TestBed.createComponent(Admin);
     const user = {
@@ -55,10 +78,11 @@ describe('Administración', () => {
     deleteButton.click(); fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Esta eliminación es permanente');
     http.expectNone(req => req.method === 'DELETE');
+    admin.reason = 'Registro de prueba';
     admin.confirmDeletion();
     const deletion = http.expectOne(req => req.method === 'DELETE');
     expect(deletion.request.url).toContain('/admin/users/client');
-    expect(deletion.request.body).toEqual({ confirm: true });
+    expect(deletion.request.body).toEqual({ confirm: true, reason: 'Registro de prueba' });
     deletion.flush({ message: 'Registro eliminado.', warning: null });
     http.expectOne(req => req.method === 'GET').flush({ items: [], hasMore: false });
     expect(admin.deleting()).toBe(null);
@@ -134,11 +158,15 @@ describe('Administración', () => {
     });
     fixture.detectChanges();
     const search: HTMLInputElement = fixture.nativeElement.querySelector('#admin-search');
-    search.value = 'evaluacion';
+    search.value = 'evaluación';
     search.dispatchEvent(new Event('input'));
+    admin.applySearch();
+    const searched = http.expectOne(req => req.url.endsWith('/admin/services') && req.params.get('q') === 'evaluación');
+    expect(searched.request.params.get('page')).toBe('1');
+    searched.flush({ items: [{ id: 'consultation', name: 'Evaluación inicial', isActive: true }], hasMore: true });
     fixture.detectChanges();
-    expect(admin.visibleRows().map(row => row.record.id)).toEqual(['consultation']);
-    expect(fixture.nativeElement.querySelector('.result-count').textContent).toContain('1 de 2');
+    expect(admin.rows().map(row => row.record.id)).toEqual(['consultation']);
+    expect(fixture.nativeElement.querySelector('.result-count').textContent).toContain('1 registro');
     admin.paginate(1);
     const nextRecords = http.expectOne(req => req.url.endsWith('/admin/services') && req.params.get('businessId') === secondBusiness.id);
     expect(nextRecords.request.params.get('page')).toBe('2');

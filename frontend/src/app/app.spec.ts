@@ -23,7 +23,7 @@ describe('App', () => {
     } });
     const fixture = TestBed.createComponent(App); fixture.detectChanges();
     const summary = fixture.nativeElement.querySelector('nav a[href="/dashboard/history"]');
-    expect(summary?.textContent.trim()).toBe('Resumen');
+    expect(summary?.textContent.trim()).toBe('Historial');
     const profile = fixture.nativeElement.querySelector('.account-name');
     expect(profile.tagName).toBe('A');
     expect(profile.getAttribute('href')).toBe('/account/profile');

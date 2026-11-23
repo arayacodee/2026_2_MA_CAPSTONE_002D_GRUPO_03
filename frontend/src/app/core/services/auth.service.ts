@@ -62,7 +62,7 @@ export class AuthService {
 
   readonly isProfessional = computed(
     () =>
-      this.isSuperadmin() || this.currentUserSignal()?.role ===
+      this.currentUserSignal()?.role ===
       'PROFESSIONAL'
   );
 

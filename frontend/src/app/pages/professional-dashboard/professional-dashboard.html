@@ -133,7 +133,7 @@
           <article class="reservation-card attention-card">
             <div class="reservation-main">
               <span class="reservation-label">Atención pendiente</span>
-              <strong>{{ reservation.service?.name || labels().service }}</strong>
+              <strong>{{ reservation.bookedServiceName || reservation.service?.name || labels().service }}</strong>
               <p>{{ reservation.client?.name || reservation.client?.email || labels().person }}</p>
             </div>
 
@@ -142,6 +142,10 @@
               <span>{{ formatTime(reservation.startsAt) }}</span>
             </div>
 
+            <div class="profile-actions">
+            @if (canMarkNoShow(reservation)) {
+              <button type="button" class="profile-link" [disabled]="changingReservation()" (click)="markNoShow(reservation.id)">Registrar inasistencia</button>
+            }
             <button
               type="button"
               class="complete-button"
@@ -149,6 +153,7 @@
             >
               Marcar como atendido
             </button>
+            </div>
           </article>
         }
       </div>
@@ -161,7 +166,14 @@
           <h2 id="upcoming-title">Próximas {{ labels().bookings.toLowerCase() }}</h2>
           <p>Las {{ labels().bookings.toLowerCase() }} confirmadas que aún tienes por atender.</p>
         </div>
+        <button type="button" class="profile-link" (click)="refreshReservations()" [disabled]="refreshingAgenda()">
+          Actualizar agenda
+        </button>
       </div>
+
+      @if (agendaError()) {
+        <p role="status">{{ agendaError() }}</p>
+      }
 
       @if (upcomingReservations().length === 0) {
         <div class="empty-state">
@@ -175,7 +187,7 @@
           <article class="reservation-card">
             <div class="reservation-main">
               <span class="reservation-label">{{ labels().booking }} confirmada</span>
-              <strong>{{ reservation.service?.name || labels().service }}</strong>
+              <strong>{{ reservation.bookedServiceName || reservation.service?.name || labels().service }}</strong>
               <p>{{ reservation.client?.name || reservation.client?.email || labels().person }}</p>
             </div>
 
@@ -183,12 +195,40 @@
               <strong>{{ formatDate(reservation.startsAt) }}</strong>
               <span>{{ formatTime(reservation.startsAt) }}</span>
             </div>
-
-
+            <button type="button" class="profile-link" [attr.aria-expanded]="editingReservation() === reservation.id"
+              (click)="editingReservation.set(editingReservation() === reservation.id ? null : reservation.id)">Reprogramar</button>
           </article>
+          @if (editingReservation() === reservation.id) {
+            <form class="reservation-card reschedule-form" (submit)="reprogram($event, reservation.id, day.value, time.value)">
+              <label>Fecha <input #day type="date" required /></label>
+              <label>Hora del negocio <input #time type="time" required /></label>
+              <button type="submit" class="complete-button" [disabled]="changingReservation()">Guardar horario</button>
+            </form>
+          }
         }
       </div>
     </section>
+
+    @if (closedReservations().length) {
+      <section class="dashboard-section" aria-labelledby="closed-title">
+        <div class="section-heading"><h2 id="closed-title">Cancelaciones e inasistencias recientes</h2></div>
+        <div class="reservation-list">
+          @for (reservation of closedReservations(); track reservation.id) {
+            <article class="reservation-card">
+              <div class="reservation-main">
+                <span class="reservation-label">{{ reservation.status === 'NO_SHOW' ? 'Inasistencia' : 'Cancelada' }}</span>
+                <strong>{{ reservation.bookedServiceName || reservation.service?.name || labels().service }}</strong>
+                <p>{{ reservation.client?.name || reservation.client?.email || labels().person }}</p>
+              </div>
+              <div class="reservation-date">
+                <strong>{{ formatDate(reservation.startsAt) }}</strong>
+                <span>{{ formatTime(reservation.startsAt) }}</span>
+              </div>
+            </article>
+          }
+        </div>
+      </section>
+    }
 
     <section class="dashboard-section" aria-labelledby="services-title">
       <div class="section-heading">

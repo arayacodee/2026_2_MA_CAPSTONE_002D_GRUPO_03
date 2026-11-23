@@ -6,7 +6,7 @@ import { HttpClient } from '@angular/common/http';
 import { Subscription } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { businessCategories, attentionModes } from '../../models/business-category';
-import { AdminRecord, AdminSectionKey, adminRecordFields, adminSearchKey, describeAdminRecord } from './admin-record-summary';
+import { AdminRecord, AdminSectionKey, adminRecordFields, describeAdminRecord } from './admin-record-summary';
 
 interface Field { key: string; label: string; type: 'text' | 'number' | 'time' | 'checkbox' | 'textarea' | 'role' | 'category' | 'mode'; }
 interface Section { key: AdminSectionKey; label: string; fields: Field[]; }
@@ -37,10 +37,12 @@ export class Admin {
     { key: 'availabilities', label: 'Horarios', fields: [field('dayOfWeek', 'Día (1 lunes – 7 domingo)', 'number'), field('startTime', 'Inicio', 'time'), field('endTime', 'Término', 'time'), field('isActive', 'Activo', 'checkbox')] },
     { key: 'reservations', label: 'Reservas', fields: [] },
     { key: 'sessions', label: 'Atenciones', fields: [field('notes', 'Notas', 'textarea')] },
-    { key: 'evidences', label: 'Evidencias', fields: [field('caption', 'Descripción', 'textarea')] }
+    { key: 'evidences', label: 'Evidencias', fields: [field('caption', 'Descripción', 'textarea')] },
+    { key: 'subscriptions', label: 'Suscripciones', fields: [] },
+    { key: 'audit', label: 'Bitácora', fields: [] },
   ];
   readonly section = signal(this.sections[0]);
-  readonly grouped = computed(() => !['users', 'businesses'].includes(this.section().key));
+  readonly grouped = computed(() => ['services', 'availabilities', 'reservations', 'sessions', 'evidences'].includes(this.section().key));
   readonly businesses = signal<AdminRecord[]>([]);
   readonly businessRows = computed(() => this.businesses().map(record => ({
     record,
@@ -57,11 +59,7 @@ export class Admin {
     record,
     ...describeAdminRecord(this.section().key, record),
   })));
-  readonly visibleRows = computed(() => {
-    const query = adminSearchKey(this.search());
-    const rows = this.rows();
-    return query ? rows.filter(row => adminSearchKey([row.title, row.description, row.badge?.label, row.record.id].join(' ')).includes(query)) : rows;
-  });
+  readonly appliedSearch = signal('');
   readonly page = signal(1);
   readonly hasMore = signal(false);
   readonly loading = signal(false);
@@ -76,14 +74,15 @@ export class Admin {
   confirmPassword = '';
   readonly creating = signal(false);
   readonly deleting = signal<AdminRecord | null>(null);
+  readonly settingState = signal<AdminRecord | null>(null);
+  readonly grantingAccess = signal<{ rowId: string; user: AdminRecord } | null>(null);
+  reason = '';
   readonly warning = signal('');
-  readonly deletionEffects: Record<AdminSectionKey, string> = {
-    users: 'Se eliminarán el usuario, sus negocios con sus servicios y horarios, sus reservas, atenciones e imágenes asociadas. Otros usuarios conservarán sus cuentas. Si vuelve a ingresar con Google, se creará una nueva cuenta de cliente.',
-    businesses: 'Se eliminarán el negocio, sus servicios, horarios, reservas, atenciones e imágenes asociadas. El propietario y los clientes conservarán sus cuentas.',
-    services: 'Se eliminarán el servicio y todas sus reservas, atenciones e imágenes asociadas, incluyendo el historial.',
+  readonly deletionEffects: Partial<Record<AdminSectionKey, string>> = {
+    users: 'Solo se pueden eliminar cuentas sin negocio, reservas ni historial de suscripción. Si el usuario vuelve a ingresar con Google, podrá crear una cuenta nueva.',
+    businesses: 'Solo se pueden eliminar negocios sin reservas. Se eliminarán sus servicios, horarios e imágenes públicas.',
+    services: 'Solo se pueden eliminar servicios que nunca se reservaron.',
     availabilities: 'Se eliminará este horario disponible. Las reservas existentes se conservarán.',
-    reservations: 'Se eliminarán la reserva y su atención e imágenes asociadas, si existen.',
-    sessions: 'Se eliminarán la atención, sus imágenes y la reserva asociada.',
     evidences: 'Se eliminarán la evidencia y su archivo de imagen. La atención y la reserva se conservarán.'
   };
   draft: Record<string, string | number | boolean | null> = {};
@@ -108,6 +107,14 @@ export class Admin {
   refresh(): void {
     if (this.grouped() && !this.openBusiness()) this.loadBusinesses();
     else this.load();
+  }
+
+  applySearch(value = this.search()): void {
+    this.search.set(value);
+    this.appliedSearch.set(value.trim());
+    this.page.set(1);
+    this.resetRecordPanels();
+    this.load();
   }
 
   loadBusinesses(): void {
@@ -165,6 +172,7 @@ export class Admin {
     this.records.set([]);
     this.page.set(1);
     this.search.set('');
+    this.appliedSearch.set('');
     this.hasMore.set(false);
     this.loading.set(false);
     this.error.set('');
@@ -183,6 +191,7 @@ export class Admin {
     const params: Record<string, string | number> = business
       ? { page: this.page(), limit: this.businessPageSize, businessId: business.id }
       : { page: this.page(), limit: this.pageSize };
+    if (this.appliedSearch()) params['q'] = this.appliedSearch();
     this.listRequest = this.http.get<AdminPage>(
       `${this.base}/${this.section().key}`, { params },
     ).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
@@ -219,6 +228,9 @@ export class Admin {
     this.close();
     this.closePassword();
     this.deleting.set(null);
+    this.settingState.set(null);
+    this.grantingAccess.set(null);
+    this.reason = '';
   }
 
   toggleRecord(record: AdminRecord): void {
@@ -235,6 +247,8 @@ export class Admin {
     this.expandedId.set(record.id);
     this.closePassword();
     this.deleting.set(null);
+    this.settingState.set(null);
+    this.grantingAccess.set(null);
     this.selected.set(record); this.creating.set(false); this.error.set(''); this.message.set(''); this.draft = {};
     for (const item of this.section().fields) {
       const value = record[item.key];
@@ -255,6 +269,8 @@ export class Admin {
     this.close();
     this.closePassword();
     this.deleting.set(null);
+    this.settingState.set(null);
+    this.grantingAccess.set(null);
     this.error.set('');
     this.editorTrigger?.focus();
     this.editorTrigger = undefined;
@@ -272,6 +288,8 @@ export class Admin {
   editPassword(record: AdminRecord, trigger?: HTMLElement): void {
     if (this.saving() || record['role'] === 'SUPERADMIN') return;
     this.expandedId.set(record.id);
+    this.settingState.set(null);
+    this.grantingAccess.set(null);
     this.close(); this.deleting.set(null); this.closePassword(); this.passwordUser.set(record); this.error.set(''); this.message.set('');
     this.revealEditor(trigger);
   }
@@ -286,7 +304,10 @@ export class Admin {
     });
   }
   requestDeletion(record: AdminRecord, trigger?: HTMLElement): void {
-    if (this.saving() || record['role'] === 'SUPERADMIN') return;
+    if (this.saving() || record['role'] === 'SUPERADMIN' || !this.deletionEffects[this.section().key]) return;
+    this.settingState.set(null);
+    this.grantingAccess.set(null);
+    this.reason = '';
     this.expandedId.set(record.id);
     this.closePassword();
     this.close(); this.deleting.set(record); this.error.set(''); this.message.set(''); this.warning.set('');
@@ -295,8 +316,9 @@ export class Admin {
   confirmDeletion(): void {
     const record = this.deleting();
     if (!record || this.saving()) return;
+    if (this.reason.trim().length < 3) { this.error.set('Indica el motivo de la eliminación.'); return; }
     this.saving.set(true); this.error.set('');
-    this.http.delete<{ message: string; warning: string | null }>(`${this.base}/${this.section().key}/${record.id}`, { body: { confirm: true } }).subscribe({
+    this.http.delete<{ message: string; warning: string | null }>(`${this.base}/${this.section().key}/${record.id}`, { body: { confirm: true, reason: this.reason.trim() } }).subscribe({
       next: result => {
         this.saving.set(false); this.message.set(result.message); this.warning.set(result.warning ?? '');
         if (this.openBusiness() && this.records().length === 1 && this.page() === 1 && !this.hasMore()) {
@@ -311,6 +333,82 @@ export class Admin {
       },
       error: err => { this.saving.set(false); this.error.set(err?.error?.error ?? 'No fue posible eliminar el registro.'); }
     });
+  }
+  stateActionLabel(record: AdminRecord): string {
+    switch (this.section().key) {
+      case 'users': return record['role'] === 'SUPERADMIN' ? '' : record['isSuspended'] ? 'Reactivar cuenta' : 'Suspender cuenta';
+      case 'businesses': return record['isArchived'] ? 'Publicar negocio' : 'Archivar negocio';
+      case 'services': return record['isActive'] ? 'Desactivar servicio' : 'Activar servicio';
+      default: return '';
+    }
+  }
+
+  requestStateChange(record: AdminRecord, trigger: HTMLElement): void {
+    this.resetRecordPanels();
+    this.expandedId.set(record.id);
+    this.settingState.set(record);
+    this.revealEditor(trigger);
+  }
+
+  saveState(): void {
+    const record = this.settingState();
+    if (!record || this.saving()) return;
+    if (this.reason.trim().length < 3) { this.error.set('Indica el motivo del cambio.'); return; }
+    const section = this.section().key;
+    const disabled = section === 'users' ? !record['isSuspended'] : section === 'businesses' ? !record['isArchived'] : Boolean(record['isActive']);
+    this.saving.set(true);
+    this.error.set('');
+    this.http.patch<{ message: string }>(`${this.base}/${section}/${record.id}/state`, { disabled, reason: this.reason.trim() }).subscribe({
+      next: result => { this.saving.set(false); this.settingState.set(null); this.message.set(result.message); this.load(); },
+      error: err => { this.saving.set(false); this.error.set(err?.error?.error ?? 'No fue posible guardar el cambio.'); },
+    });
+  }
+
+  temporaryAccessUser(record: AdminRecord): AdminRecord | null {
+    const section = this.section().key;
+    const user = section === 'users' ? record : section === 'subscriptions' ? record['user'] : null;
+    if (!user || typeof user !== 'object' || !('role' in user)) return null;
+    if (user.role !== 'PROFESSIONAL' && !(section === 'subscriptions' && user.role === 'CLIENT')) return null;
+    return 'id' in user && typeof user.id === 'string' ? user as AdminRecord : null;
+  }
+
+  requestTemporaryAccess(record: AdminRecord, user: AdminRecord, trigger: HTMLElement): void {
+    this.resetRecordPanels();
+    this.expandedId.set(record.id);
+    this.grantingAccess.set({ rowId: record.id, user });
+    this.error.set('');
+    this.message.set('');
+    this.revealEditor(trigger);
+  }
+
+  saveTemporaryAccess(event: Event, duration: string, reason: string): void {
+    event.preventDefault();
+    const target = this.grantingAccess();
+    const months = Number(duration);
+    if (!target || this.saving()) return;
+    if (![1, 2, 3].includes(months) || reason.trim().length < 3) {
+      this.error.set('Selecciona 1, 2 o 3 meses e indica el motivo.');
+      return;
+    }
+    this.saving.set(true);
+    this.error.set('');
+    const subscriptionId = target.user['role'] === 'CLIENT' ? target.rowId : undefined;
+    this.http.patch<{ message: string }>(`${this.base}/users/${target.user.id}/temporary-access`, {
+      months, reason: reason.trim(), ...(subscriptionId ? { subscriptionId } : {}),
+    })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: result => {
+          this.saving.set(false);
+          this.dismissEditor();
+          this.message.set(result.message);
+          this.load();
+        },
+        error: err => {
+          this.saving.set(false);
+          this.error.set(err?.error?.error ?? 'No fue posible habilitar el acceso temporal.');
+        },
+      });
   }
   close(): void { this.selected.set(null); this.creating.set(false); }
   save(): void {

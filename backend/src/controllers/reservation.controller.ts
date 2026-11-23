@@ -1,21 +1,15 @@
 import type { Request, Response } from "express";
 import { z } from "zod";
-import { prisma } from "../lib/prisma.js";
-import { hasProfessionalAccess } from '../lib/subscriptions.js';
-import { paymentsConfigured } from '../lib/mercado-pago.js';
+import { isTransactionConflict, prisma } from "../lib/prisma.js";
+import { bookingOwnerSelect, canReceiveBookings } from '../lib/subscriptions.js';
+import type { Prisma } from '../generated/prisma/client.js';
 import { cancelSafely, completeSafely, ReservationConflict } from "../lib/reservation-state.js";
+import { zonedLocalToDate } from './availability.controller.js';
+import { recordAdminAction } from '../lib/admin-audit.js';
 
-const createReservationSchema =
-  z.object({
-    serviceId: z.string().uuid(),
-
-    startsAt: z.string().refine(
-      (value) =>
-        !Number.isNaN(
-          Date.parse(value)
-        ),
-      "Fecha Incorrecta"
-    )
+const createReservationSchema = z.object({
+  serviceId: z.string().uuid(),
+  startsAt: z.iso.datetime({ offset: true }).refine(value => Date.parse(value) % 60_000 === 0),
 });
 
 const completeReservationSchema = z.object({
@@ -63,224 +57,147 @@ const getLocalDateParts = (date: Date, timeZone: string) => {
   };
 };
 
-const isPrismaRetryableError = (error: unknown) => {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    (error as { code?: string }).code === "P2034"
-  );
-};
+const reservationInclude = {
+  service: { select: { id: true, name: true, durationMin: true, price: true } },
+  client: { select: { id: true, name: true, email: true } },
+  business: { select: { id: true, name: true, timezone: true } },
+} satisfies Prisma.ReservationInclude;
 
-export const createReservation = async (
-  req: Request,
-  res: Response
-) => {
-  const result = createReservationSchema.safeParse(req.body);
-
-  if (!result.success) {
-    return res.status(400).json({
-      error: "Invalid request data",
-      details: result.error.flatten(),
-    });
+async function withScheduleTransaction<T>(operation: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await prisma.$transaction(operation, { isolationLevel: 'Serializable', timeout: 12_000 });
+    } catch (error) {
+      if (!isTransactionConflict(error)) throw error;
+      if (attempt === 3) throw new ReservationConflict('La agenda cambió. Actualiza los horarios e intenta nuevamente.');
+    }
   }
+}
 
-  const {
-    serviceId,
-    startsAt
-  } = result.data;
+async function checkSlot(
+  tx: Prisma.TransactionClient,
+  business: { id: string; timezone: string },
+  startsAt: Date,
+  durationMin: number,
+  excludingId?: string,
+): Promise<Date> {
+  if (startsAt <= new Date()) throw new ReservationConflict('Elige un horario futuro.');
+  const endsAt = new Date(startsAt.getTime() + durationMin * 60_000);
+  const start = getLocalDateParts(startsAt, business.timezone);
+  const end = getLocalDateParts(endsAt, business.timezone);
+  if (start.datePart !== end.datePart) throw new ReservationConflict('La reserva debe comenzar y terminar el mismo día.');
+  const exception = await tx.scheduleException.findUnique({
+    where: { businessId_day: { businessId: business.id, day: start.datePart } },
+  });
+  if (exception) throw new ReservationConflict('El negocio no atiende en esa fecha.');
 
-  const clientId =
-    req.authUser!.id;
+  const availability = await tx.availability.findFirst({
+    where: {
+      businessId: business.id, dayOfWeek: start.dayOfWeek, isActive: true,
+      startTime: { lte: start.time }, endTime: { gte: end.time },
+    },
+  });
+  if (!availability) throw new ReservationConflict('El horario está fuera de la disponibilidad del negocio.');
 
-  const reservationStart = new Date(startsAt);
+  const overlap = await tx.reservation.findFirst({
+    where: {
+      businessId: business.id, ...(excludingId ? { id: { not: excludingId } } : {}),
+      status: { in: ['PENDING', 'CONFIRMED', 'COMPLETED'] },
+      startsAt: { lt: endsAt }, endsAt: { gt: startsAt },
+    },
+  });
+  if (overlap) throw new ReservationConflict('Ese horario ya está ocupado. Selecciona otro.');
+  return endsAt;
+}
 
-  if (reservationStart <= new Date()) {
-    return res.status(400).json({
-      error: "Reservation must be in the future",
-    });
-  }
+export const createReservation = async (req: Request, res: Response) => {
+  const parsed = createReservationSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Selecciona un servicio y un horario válidos.' });
+  const startsAt = new Date(parsed.data.startsAt);
+  if (startsAt <= new Date()) return res.status(400).json({ error: 'Elige un horario futuro.' });
 
   try {
-    const service = await prisma.service.findUnique({
-      where: {
-        id: serviceId,
-      },
-      include: {
-        business: true,
-      },
-    });
-
-    if (!service) {
-      return res.status(404).json({
-        error: "Service not found",
+    const reservation = await withScheduleTransaction(async tx => {
+      const service = await tx.service.findUnique({
+        where: { id: parsed.data.serviceId },
+        include: { business: { include: { owner: { select: bookingOwnerSelect } } } },
       });
-    }
-
-    if (!service.isActive) {
-      return res.status(409).json({
-        error: "Service is not active",
-      });
-    }
-
-    if (paymentsConfigured() && !(await hasProfessionalAccess(service.business.ownerId))) {
-      return res.status(409).json({ error: 'Este negocio no está recibiendo nuevas reservas.' });
-    }
-
-    const client = await prisma.user.findUnique({
-      where: {
-        id: clientId,
-      },
-    });
-
-    if (!client) {
-      return res.status(404).json({
-        error: "Client not found",
-      });
-    }
-
-    if (client.role !== "CLIENT") {
-      return res.status(403).json({
-        error: "Only client users can create reservations",
-      });
-    }
-
-    const reservationEnd = new Date(
-      reservationStart.getTime() + service.durationMin * 60_000
-    );
-
-    const timeZone = service.business.timezone;
-
-    const localStart = getLocalDateParts(
-      reservationStart,
-      timeZone
-    );
-
-    const localEnd = getLocalDateParts(
-      reservationEnd,
-      timeZone
-    );
-
-    if (localStart.datePart !== localEnd.datePart) {
-      return res.status(409).json({
-        error: "Reservation cannot cross into another day",
-      });
-    }
-
-    const availability = await prisma.availability.findFirst({
-      where: {
-        businessId: service.businessId,
-        dayOfWeek: localStart.dayOfWeek,
-        isActive: true,
-        startTime: {
-          lte: localStart.time,
-        },
-        endTime: {
-          gte: localEnd.time,
-        },
-      },
-    });
-
-    if (!availability) {
-      return res.status(409).json({
-        error: "Requested time is outside business availability",
-      });
-    }
-
-    const maxAttempts = 3;
-
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      try {
-        const reservation = await prisma.$transaction(
-          async (tx) => {
-            const overlappingReservation =
-              await tx.reservation.findFirst({
-                where: {
-                  businessId: service.businessId,
-                  status: {
-                    not: "CANCELLED",
-                  },
-                  startsAt: {
-                    lt: reservationEnd,
-                  },
-                  endsAt: {
-                    gt: reservationStart,
-                  },
-                },
-              });
-
-            if (overlappingReservation) {
-              return null;
-            }
-
-            return tx.reservation.create({
-              data: {
-                businessId: service.businessId,
-                serviceId,
-                clientId,
-                startsAt: reservationStart,
-                endsAt: reservationEnd,
-              },
-              include: {
-                service: {
-                  select: {
-                    id: true,
-                    name: true,
-                    durationMin: true,
-                    price: true,
-                  },
-                },
-                client: {
-                  select: {
-                    id: true,
-                    name: true,
-                    email: true,
-                  },
-                },
-                business: {
-                  select: {
-                    id: true,
-                    name: true,
-                    timezone: true,
-                  },
-                },
-              },
-            });
-          },
-          {
-            isolationLevel: "Serializable",
-          }
-        );
-
-        if (!reservation) {
-          return res.status(409).json({
-            error: "Requested time overlaps an existing reservation",
-          });
-        }
-
-        return res.status(201).json(reservation);
-      } catch (error) {
-        if (isPrismaRetryableError(error)) {
-          if (attempt < maxAttempts) continue;
-          return res.status(409).json({
-            error: "El horario cambió mientras reservabas. Actualiza los horarios e intenta nuevamente.",
-          });
-        }
-
-        throw error;
+      if (!service) return null;
+      if (!service.isActive || !canReceiveBookings(service.business)) {
+        throw new ReservationConflict('Este servicio no está recibiendo reservas.');
       }
-    }
-
-    return res.status(409).json({
-      error: "Could not create reservation due to concurrent requests",
+      const endsAt = await checkSlot(tx, service.business, startsAt, service.durationMin);
+      return tx.reservation.create({
+        data: {
+          businessId: service.businessId, serviceId: service.id, clientId: req.authUser!.id, startsAt, endsAt,
+          bookedServiceName: service.name, bookedDurationMin: service.durationMin, bookedPrice: service.price,
+        },
+        include: reservationInclude,
+      });
     });
+    if (!reservation) return res.status(404).json({ error: 'Servicio no encontrado.' });
+    return res.status(201).json(reservation);
   } catch (error) {
-    console.error("Create reservation error:", error);
-
-    return res.status(500).json({
-      error: "Internal server error",
-    });
+    if (error instanceof ReservationConflict) return res.status(409).json({ error: error.message });
+    throw error;
   }
+};
+
+export const rescheduleReservation = async (req: Request<{ id: string }>, res: Response) => {
+  const parsed = z.object({ day: z.iso.date(), time: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/) }).strict().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Selecciona un horario válido.' });
+  try {
+    const changed = await withScheduleTransaction(async tx => {
+      const reservation = await tx.reservation.findFirst({
+        where: { id: req.params.id, business: { ownerId: req.authUser!.id } },
+        include: { business: true },
+      });
+      if (!reservation) return null;
+      if (reservation.status !== 'CONFIRMED' || reservation.startsAt <= new Date()) {
+        throw new ReservationConflict('Solo se pueden reprogramar reservas confirmadas que aún no comienzan.');
+      }
+      const timezone = reservation.business.timezone;
+      const startsAt = zonedLocalToDate(parsed.data.day, parsed.data.time, timezone);
+      const local = getLocalDateParts(startsAt, timezone);
+      if (local.datePart !== parsed.data.day || local.time !== parsed.data.time) {
+        throw new ReservationConflict('Ese horario no existe en la zona horaria del negocio.');
+      }
+      if (reservation.startsAt.getTime() === startsAt.getTime()) {
+        throw new ReservationConflict('Selecciona un horario distinto.');
+      }
+      const duration = reservation.bookedDurationMin ?? Math.round((reservation.endsAt.getTime() - reservation.startsAt.getTime()) / 60_000);
+      const endsAt = await checkSlot(tx, reservation.business, startsAt, duration, reservation.id);
+      return tx.reservation.update({
+        where: { id: reservation.id },
+        data: {
+          startsAt, endsAt, changes: { create: {
+            actorId: req.authUser!.id, previousStart: reservation.startsAt, previousEnd: reservation.endsAt,
+            newStart: startsAt, newEnd: endsAt,
+          } },
+        },
+        include: reservationInclude,
+      });
+    });
+    if (!changed) return res.status(404).json({ error: 'Reserva no encontrada.' });
+    return res.json(changed);
+  } catch (error) {
+    if (error instanceof ReservationConflict) return res.status(409).json({ error: error.message });
+    throw error;
+  }
+};
+
+export const markNoShow = async (req: Request<{ id: string }>, res: Response) => {
+  const ownerFilter = { id: req.params.id, business: { ownerId: req.authUser!.id } };
+  const changed = await prisma.reservation.updateMany({
+    where: { ...ownerFilter, status: 'CONFIRMED', endsAt: { lte: new Date() } },
+    data: { status: 'NO_SHOW' },
+  });
+  const reservation = await prisma.reservation.findFirst({ where: ownerFilter, include: reservationInclude });
+  if (!reservation) return res.status(404).json({ error: 'Reserva no encontrada.' });
+  if (!changed.count && reservation.status !== 'NO_SHOW') {
+    return res.status(409).json({ error: 'Solo se puede registrar inasistencia cuando termina el horario de una reserva confirmada.' });
+  }
+  return res.json(reservation);
 };
 
 export const getReservations = async (
@@ -436,7 +353,11 @@ export const cancelReservation = async (req: Request<{ id: string }>, res: Respo
     const user = req.authUser!;
     const allowed = user.role === "SUPERADMIN" || (user.role === "CLIENT" ? reservation.clientId === user.id : reservation.business.ownerId === user.id);
     if (!allowed) return res.status(403).json({ error: "Forbidden" });
-    const cancelled = await prisma.$transaction(tx => cancelSafely(tx, reservation.id));
+    const cancelled = await prisma.$transaction(async tx => {
+      const result = await cancelSafely(tx, reservation.id);
+      if (user.role === 'SUPERADMIN') await recordAdminAction(tx, user.id, 'cancelled', 'reservations', reservation.id);
+      return result;
+    });
     return res.json(cancelled);
   } catch (error) {
     if (error instanceof ReservationConflict) return res.status(409).json({ error: error.message });
@@ -452,7 +373,13 @@ export const completeReservation = async (req: Request<{ id: string }>, res: Res
     const reservation = await prisma.reservation.findUnique({ where: { id: req.params.id }, include: { business: true } });
     if (!reservation) return res.status(404).json({ error: "Reserva no encontrada." });
     if (req.authUser!.role !== "SUPERADMIN" && reservation.business.ownerId !== req.authUser!.id) return res.status(403).json({ error: "Forbidden" });
-    const completed = await prisma.$transaction(tx => completeSafely(tx, reservation.id, result.data.notes));
+    const completed = await prisma.$transaction(async tx => {
+      const completion = await completeSafely(tx, reservation.id, result.data.notes);
+      if (req.authUser!.role === 'SUPERADMIN') {
+        await recordAdminAction(tx, req.authUser!.id, 'completed', 'reservations', reservation.id);
+      }
+      return completion;
+    });
     return res.json(completed);
   } catch (error) {
     if (error instanceof ReservationConflict) return res.status(409).json({ error: error.message });

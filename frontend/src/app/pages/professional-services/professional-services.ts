@@ -72,21 +72,8 @@ export class ProfessionalServices implements OnInit {
       return;
     }
 
-    this.api.getBusinesses().subscribe({
-      next: (businesses) => {
-        const business = businesses.find(
-          (item) => item.ownerId === professional.id
-        );
-
-        if (!business) {
-          this.errorMessage.set(
-            'El profesional no tiene un negocio.'
-          );
-
-          this.loading.set(false);
-          return;
-        }
-
+    this.api.getMyBusiness().subscribe({
+      next: (business) => {
         this.business.set(business);
 
         this.loadServices(business.id);
@@ -96,7 +83,7 @@ export class ProfessionalServices implements OnInit {
         console.error(error);
 
         this.errorMessage.set(
-          'No fue posible cargar los datos.'
+          error.status === 404 ? 'Aún no tienes un negocio.' : 'No fue posible cargar los datos.'
         );
 
         this.loading.set(false);

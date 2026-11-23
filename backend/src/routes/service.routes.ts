@@ -10,6 +10,7 @@ import {
 import {
   authenticate,
   requireRole,
+  requireProfessionalAccess,
 } from "../middleware/auth.middleware.js";
 
 const router = Router();
@@ -27,14 +28,16 @@ router.get(
 router.post(
   "/",
   authenticate,
-  requireRole("PROFESSIONAL", "SUPERADMIN"),
+  requireRole("PROFESSIONAL"),
+  requireProfessionalAccess,
   createService
 );
 
 router.patch(
   "/:id",
   authenticate,
-  requireRole("PROFESSIONAL", "SUPERADMIN"),
+  requireRole("PROFESSIONAL"),
+  requireProfessionalAccess,
   updateService
 );
 

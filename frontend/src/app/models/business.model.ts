@@ -7,6 +7,8 @@ export interface BusinessOwner {
 }
 
 export interface Business {
+  canBook?: boolean;
+  isArchived?: boolean;
   category?: BusinessCategory;
   professionalName?: string | null;
   specialties?: string | null;

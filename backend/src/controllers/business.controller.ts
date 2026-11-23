@@ -7,6 +7,7 @@ import { uploadImageBuffer } from "../lib/cloudinary-upload.js";
 import { cloudinary } from "../lib/cloudinary.js";
 import { randomUUID } from "node:crypto";
 import { businessProfileFields } from '../lib/business-profile.js';
+import { bookingOwnerSelect, canReceiveBookings } from '../lib/subscriptions.js';
 
 const createBusinessSchema = z.object({
   ...businessProfileFields,
@@ -78,6 +79,9 @@ export const createBusiness = async (
 
     return res.status(201).json(business);
   } catch (error) {
+    if ((error as { code?: string }).code === 'P2002') {
+      return res.status(409).json({ error: 'Ya tienes un perfil de negocio.' });
+    }
     console.error(
       "Create business error:",
       error
@@ -95,12 +99,13 @@ export const getBusinesses = async (
 ) => {
   try {
     const businesses = await prisma.business.findMany({
+      where: { isArchived: false, owner: { isSuspended: false, role: 'PROFESSIONAL' } },
       include: {
         owner: {
           select: {
             id: true,
             name: true,
-            role: true,
+            ...bookingOwnerSelect,
           },
         },
       },
@@ -110,7 +115,10 @@ export const getBusinesses = async (
       },
     });
 
-    return res.status(200).json(businesses);
+    return res.status(200).json(businesses.map(({ owner, ...business }) => ({
+      ...business, owner: { id: owner.id, name: owner.name, role: owner.role },
+      canBook: canReceiveBookings({ ...business, owner }),
+    })));
   } catch (error) {
     console.error("Get businesses error:", error);
 
@@ -189,7 +197,7 @@ export const getBusinessById = async (
           select: {
             id: true,
             name: true,
-            role: true,
+            ...bookingOwnerSelect,
           },
         },
 
@@ -201,13 +209,17 @@ export const getBusinessById = async (
       },
     });
 
-    if (!business) {
+    if (!business || business.isArchived || business.owner.isSuspended) {
       return res.status(404).json({
         error: "Business not found",
       });
     }
 
-    return res.status(200).json(business);
+    const { owner, ...profile } = business;
+    return res.status(200).json({
+      ...profile, owner: { id: owner.id, name: owner.name, role: owner.role },
+      canBook: canReceiveBookings(business),
+    });
   } catch (error) {
     console.error("Get business error:", error);
 

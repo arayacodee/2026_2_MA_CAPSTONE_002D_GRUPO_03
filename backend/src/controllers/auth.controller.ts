@@ -43,6 +43,7 @@ export const passwordLogin = async (req: Request, res: Response) => {
   const user = await prisma.user.findFirst({ where: { email: { equals: parsed.data.email, mode: 'insensitive' } } });
   const valid = await verifyAdminPassword(parsed.data.password, user?.passwordHash ?? await dummyPasswordHash);
   if (!user || !valid || user.role === 'SUPERADMIN') return res.status(401).json({ error: 'Correo o contraseña incorrectos.' });
+  if (user.isSuspended) return res.status(403).json({ error: 'La cuenta está suspendida.' });
   res.cookie(SESSION_COOKIE, await createSessionToken(user.id), cookieOptions);
   return res.json({ user: await prisma.user.findUnique({ where: { id: user.id }, select: privateUserSelect }) });
 };
@@ -144,6 +145,7 @@ export const googleLogin = async (
         });
 
       if (existingByEmail) {
+        if (existingByEmail.isSuspended) return res.status(403).json({ error: 'La cuenta está suspendida.' });
         if (
           existingByEmail.googleId &&
           existingByEmail.googleId !== googleId
@@ -178,6 +180,7 @@ export const googleLogin = async (
       }
     }
 
+    if (user.isSuspended) return res.status(403).json({ error: 'La cuenta está suspendida.' });
     const sessionToken =
       await createSessionToken(user.id);
 

@@ -39,7 +39,7 @@ import {
 })
 export class ApiService {
   subscriptionCheckout() { return this.http.post<{ checkoutUrl: string }>(`${this.baseUrl}/api/subscriptions/checkout`, {}); }
-  subscriptions() { return this.http.get<{ subscriptions: { id: string; status: string; paidUntil: string | null; businessName: string }[] }>(`${this.baseUrl}/api/subscriptions`); }
+  subscriptions() { return this.http.get<{ manualAccessUntil: string | null; subscriptions: { id: string; status: string; paidUntil: string | null; businessName: string }[] }>(`${this.baseUrl}/api/subscriptions`); }
   refreshSubscriptions() { return this.http.post(`${this.baseUrl}/api/subscriptions/refresh`, {}); }
   cancelSubscription(id: string) { return this.http.post(`${this.baseUrl}/api/subscriptions/${encodeURIComponent(id)}/cancel`, {}); }
   activateProfessionalDemo() { return this.http.post<AuthResponse>(`${this.baseUrl}/api/account/professional-application/activate-demo`, {}); }
@@ -198,6 +198,25 @@ export class ApiService {
     return this.http.get<Reservation[]>(
       `${this.baseUrl}/api/reservations`
     );
+  }
+  markNoShow(id: string): Observable<Reservation> {
+    return this.http.patch<Reservation>(`${this.baseUrl}/api/reservations/${id}/no-show`, {});
+  }
+
+  rescheduleReservation(id: string, day: string, time: string): Observable<Reservation> {
+    return this.http.patch<Reservation>(`${this.baseUrl}/api/reservations/${id}/reschedule`, { day, time });
+  }
+
+  getBlockedDays() {
+    return this.http.get<{ day: string; reason: string | null }[]>(`${this.baseUrl}/api/availabilities/blocked-days`);
+  }
+
+  blockDay(day: string, reason: string) {
+    return this.http.post<{ day: string; reason: string | null }>(`${this.baseUrl}/api/availabilities/blocked-days`, { day, reason });
+  }
+
+  unblockDay(day: string) {
+    return this.http.delete<void>(`${this.baseUrl}/api/availabilities/blocked-days/${encodeURIComponent(day)}`);
   }
   getUsers(): Observable<User[]> {
     return this.http.get<User[]>(

@@ -2,8 +2,37 @@ import type { Request, Response } from "express";
 import { z } from "zod";
 
 import { prisma } from "../lib/prisma.js";
+import { bookingOwnerSelect, canReceiveBookings } from '../lib/subscriptions.js';
 
 const timeRegex = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+const calendarDay = z.iso.date();
+
+export async function listBlockedDays(req: Request, res: Response) {
+  return res.json(await prisma.scheduleException.findMany({
+    where: { business: { ownerId: req.authUser!.id } },
+    orderBy: { day: 'asc' },
+  }));
+}
+
+export async function blockDay(req: Request, res: Response) {
+  const parsed = z.object({ day: calendarDay, reason: z.string().trim().max(160).optional() }).strict().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Indica una fecha y un motivo de hasta 160 caracteres.' });
+  const business = await prisma.business.findUnique({ where: { ownerId: req.authUser!.id } });
+  if (!business) return res.status(404).json({ error: 'Primero crea tu negocio.' });
+  const day = parsed.data.day;
+  const data = { businessId: business.id, day, reason: parsed.data.reason || null };
+  return res.json(await prisma.scheduleException.upsert({
+    where: { businessId_day: { businessId: business.id, day } },
+    create: data, update: { reason: data.reason },
+  }));
+}
+
+export async function unblockDay(req: Request, res: Response) {
+  const parsed = calendarDay.safeParse(req.params.day);
+  if (!parsed.success) return res.status(400).json({ error: 'Fecha inválida.' });
+  await prisma.scheduleException.deleteMany({ where: { day: parsed.data, business: { ownerId: req.authUser!.id } } });
+  return res.status(204).end();
+}
 
 const createAvailabilitySchema = z.object({
   businessId: z.string().uuid(),
@@ -82,7 +111,7 @@ const getTimeZoneOffsetMs = (
   return representedAsUtc - date.getTime();
 };
 
-const zonedLocalToDate = (
+export const zonedLocalToDate = (
   date: string,
   time: string,
   timeZone: string
@@ -298,9 +327,7 @@ export const getAvailableSlots = async (
           id: serviceId,
         },
 
-        include: {
-          business: true,
-        },
+        include: { business: { include: { owner: { select: bookingOwnerSelect } } } },
       });
 
     if (
@@ -311,6 +338,14 @@ export const getAvailableSlots = async (
         error: "Service not available",
       });
     }
+
+    if (!canReceiveBookings(service.business)) {
+      return res.status(409).json({ error: 'Este negocio no está recibiendo nuevas reservas.' });
+    }
+    const exception = await prisma.scheduleException.findUnique({
+      where: { businessId_day: { businessId: service.businessId, day: date } },
+    });
+    if (exception) return res.json({ date, timezone: service.business.timezone, slots: [] });
 
     const timeZone =
       service.business.timezone;
@@ -384,7 +419,7 @@ export const getAvailableSlots = async (
             service.businessId,
 
           status: {
-            not: "CANCELLED",
+            in: ['PENDING', 'CONFIRMED', 'COMPLETED'],
           },
 
           startsAt: {

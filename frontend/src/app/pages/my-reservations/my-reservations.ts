@@ -1,4 +1,6 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Subscription, finalize, interval, timeout } from 'rxjs';
 import { RouterLink } from '@angular/router';
 
 import { ApiService } from '../../core/services/api.service';
@@ -19,6 +21,10 @@ export class MyReservations implements OnInit {
   loading = signal(true);
   errorMessage = signal('');
   cancellingId = signal<string | null>(null);
+  readonly refreshing = signal(false);
+  readonly refreshError = signal('');
+  private readonly destroyRef = inject(DestroyRef);
+  private request?: Subscription;
 
   constructor(
     private readonly api: ApiService,
@@ -40,11 +46,18 @@ export class MyReservations implements OnInit {
     this.client.set(currentUser);
 
     this.loadReservations();
+    interval(5_000).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.loadReservations());
   }
 
 
   private loadReservations(): void {
-    this.api.getMyReservations().subscribe({
+    if (this.refreshing() || this.cancellingId()) return;
+    this.refreshing.set(true);
+    this.request = this.api.getMyReservations().pipe(
+      timeout(12_000),
+      finalize(() => this.refreshing.set(false)),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe({
       next: (reservations) => {
         const ordered = [...reservations].sort(
           (a, b) =>
@@ -53,15 +66,14 @@ export class MyReservations implements OnInit {
         );
 
         this.reservations.set(ordered);
+        this.refreshError.set('');
         this.loading.set(false);
       },
 
       error: (error) => {
         console.error(error);
 
-        this.errorMessage.set(
-          'No fue posible cargar tus reservas.'
-        );
+        this.refreshError.set('No fue posible actualizar tus reservas.');
 
         this.loading.set(false);
       }
@@ -75,16 +87,18 @@ export class MyReservations implements OnInit {
     }
 
     this.cancellingId.set(reservation.id);
+    this.request?.unsubscribe();
     this.errorMessage.set('');
 
-    this.api.cancelReservation(reservation.id).subscribe({
+    this.api.cancelReservation(reservation.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (cancelled) => {
         this.reservations.update((reservations) =>
           reservations.map((reservation) =>
             reservation.id === cancelled.id
               ? {
                   ...reservation,
-                  status: cancelled.status
+                  status: cancelled.status,
+                  updatedAt: cancelled.updatedAt,
                 }
               : reservation
           )
@@ -143,6 +157,8 @@ export class MyReservations implements OnInit {
 
       case 'CANCELLED':
         return 'Cancelada';
+      case 'NO_SHOW':
+        return 'Inasistencia';
 
       default:
         return 'Desconocido';

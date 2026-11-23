@@ -6,6 +6,8 @@ import {
   getReservationById,
   cancelReservation,
   completeReservation,
+  rescheduleReservation,
+  markNoShow,
 } from "../controllers/reservation.controller.js";
 
 import {
@@ -16,6 +18,7 @@ import {
 const router = Router();
 
 router.use(authenticate);
+router.use(requireRole('CLIENT', 'PROFESSIONAL'));
 
 router.get(
   "/",
@@ -42,8 +45,11 @@ router.patch(
 // por el profesional propietario del negocio.
 router.patch(
   "/:id/complete",
-  requireRole("PROFESSIONAL", "SUPERADMIN"),
+  requireRole("PROFESSIONAL"),
   completeReservation
 );
+
+router.patch('/:id/reschedule', requireRole('PROFESSIONAL'), rescheduleReservation);
+router.patch('/:id/no-show', requireRole('PROFESSIONAL'), markNoShow);
 
 export default router;

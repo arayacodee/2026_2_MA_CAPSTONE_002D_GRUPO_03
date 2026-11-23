@@ -11,7 +11,7 @@ export async function cancelSafely(tx: Prisma.TransactionClient, id: string) {
   });
   const reservation = await tx.reservation.findUniqueOrThrow({ where: { id } });
   if (!changed.count && reservation.status !== "CANCELLED") {
-    throw new ReservationConflict("Una atención completada no puede cancelarse.");
+    throw new ReservationConflict("Una reserva cerrada no puede cancelarse.");
   }
   return reservation;
 }
@@ -21,7 +21,7 @@ export async function completeSafely(tx: Prisma.TransactionClient, id: string, n
     where: { id, status: "CONFIRMED", startsAt: { lte: new Date() } },
     data: { status: "COMPLETED" },
   });
-  const reservation = await tx.reservation.findUniqueOrThrow({ where: { id }, include: { service: true } });
+  const reservation = await tx.reservation.findUniqueOrThrow({ where: { id } });
   if (!changed.count) {
     const session = await tx.clientSession.findUnique({ where: { reservationId: id } });
     if (reservation.status === "COMPLETED" && session) return { reservation, session };
@@ -34,7 +34,7 @@ export async function completeSafely(tx: Prisma.TransactionClient, id: string, n
       reservationId: id,
       occurredAt: reservation.startsAt,
       notes: notes || null,
-      amount: reservation.service.price,
+      amount: reservation.bookedPrice ?? null,
     },
   });
   return { reservation, session };
