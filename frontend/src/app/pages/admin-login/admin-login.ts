@@ -1,9 +1,10 @@
+import { ValidateForm } from '../../core/forms/validate-form.directive';
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 
-@Component({ selector: 'app-admin-login', imports: [FormsModule, RouterLink], templateUrl: './admin-login.html', styleUrl: '../login/login.css' })
+@Component({ selector: 'app-admin-login', imports: [ValidateForm, FormsModule, RouterLink], templateUrl: './admin-login.html', styleUrl: '../login/login.css' })
 export class AdminLogin {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);

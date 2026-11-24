@@ -4,7 +4,7 @@ import { isTransactionConflict, prisma } from "../lib/prisma.js";
 import { bookingOwnerSelect, canReceiveBookings } from '../lib/subscriptions.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { cancelSafely, completeSafely, ReservationConflict } from "../lib/reservation-state.js";
-import { zonedLocalToDate } from './availability.controller.js';
+import { timeToMinutes, zonedLocalToDate } from './availability.controller.js';
 import { recordAdminAction } from '../lib/admin-audit.js';
 
 const createReservationSchema = z.object({
@@ -19,6 +19,12 @@ const completeReservationSchema = z.object({
     .max(1500)
     .optional(),
 });
+
+class ReservationSlotConflict extends ReservationConflict {
+  constructor(readonly field: 'day' | 'time', message: string) {
+    super(message);
+  }
+}
 
 const weekdayMap: Record<string, number> = {
   Mon: 1,
@@ -81,15 +87,15 @@ async function checkSlot(
   durationMin: number,
   excludingId?: string,
 ): Promise<Date> {
-  if (startsAt <= new Date()) throw new ReservationConflict('Elige un horario futuro.');
+  if (startsAt <= new Date()) throw new ReservationSlotConflict('time', 'Elige un horario futuro.');
   const endsAt = new Date(startsAt.getTime() + durationMin * 60_000);
   const start = getLocalDateParts(startsAt, business.timezone);
   const end = getLocalDateParts(endsAt, business.timezone);
-  if (start.datePart !== end.datePart) throw new ReservationConflict('La reserva debe comenzar y terminar el mismo día.');
+  if (start.datePart !== end.datePart) throw new ReservationSlotConflict('time', 'Elige una hora que permita terminar la reserva el mismo día.');
   const exception = await tx.scheduleException.findUnique({
     where: { businessId_day: { businessId: business.id, day: start.datePart } },
   });
-  if (exception) throw new ReservationConflict('El negocio no atiende en esa fecha.');
+  if (exception) throw new ReservationSlotConflict('day', 'El negocio no atiende en esa fecha. Elige otro día.');
 
   const availability = await tx.availability.findFirst({
     where: {
@@ -97,7 +103,11 @@ async function checkSlot(
       startTime: { lte: start.time }, endTime: { gte: end.time },
     },
   });
-  if (!availability) throw new ReservationConflict('El horario está fuera de la disponibilidad del negocio.');
+  if (!availability) throw new ReservationSlotConflict('time', 'Elige una hora dentro de la disponibilidad del negocio.');
+  if (!excludingId && (
+    (timeToMinutes(start.time) - timeToMinutes(availability.startTime)) % durationMin !== 0 ||
+    zonedLocalToDate(start.datePart, start.time, business.timezone).getTime() !== startsAt.getTime()
+  )) throw new ReservationSlotConflict('time', 'Selecciona una de las horas disponibles para este servicio.');
 
   const overlap = await tx.reservation.findFirst({
     where: {
@@ -106,7 +116,7 @@ async function checkSlot(
       startsAt: { lt: endsAt }, endsAt: { gt: startsAt },
     },
   });
-  if (overlap) throw new ReservationConflict('Ese horario ya está ocupado. Selecciona otro.');
+  if (overlap) throw new ReservationSlotConflict('time', 'Ese horario ya está ocupado. Selecciona otro.');
   return endsAt;
 }
 
@@ -114,7 +124,7 @@ export const createReservation = async (req: Request, res: Response) => {
   const parsed = createReservationSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Selecciona un servicio y un horario válidos.' });
   const startsAt = new Date(parsed.data.startsAt);
-  if (startsAt <= new Date()) return res.status(400).json({ error: 'Elige un horario futuro.' });
+  if (startsAt <= new Date()) return res.status(400).json({ error: 'Elige un horario futuro.', field: 'time' });
 
   try {
     const reservation = await withScheduleTransaction(async tx => {
@@ -138,6 +148,7 @@ export const createReservation = async (req: Request, res: Response) => {
     if (!reservation) return res.status(404).json({ error: 'Servicio no encontrado.' });
     return res.status(201).json(reservation);
   } catch (error) {
+    if (error instanceof ReservationSlotConflict) return res.status(409).json({ error: error.message, field: error.field });
     if (error instanceof ReservationConflict) return res.status(409).json({ error: error.message });
     throw error;
   }
@@ -160,10 +171,10 @@ export const rescheduleReservation = async (req: Request<{ id: string }>, res: R
       const startsAt = zonedLocalToDate(parsed.data.day, parsed.data.time, timezone);
       const local = getLocalDateParts(startsAt, timezone);
       if (local.datePart !== parsed.data.day || local.time !== parsed.data.time) {
-        throw new ReservationConflict('Ese horario no existe en la zona horaria del negocio.');
+        throw new ReservationSlotConflict('time', 'Ese horario no existe en la zona horaria del negocio. Elige otra hora.');
       }
       if (reservation.startsAt.getTime() === startsAt.getTime()) {
-        throw new ReservationConflict('Selecciona un horario distinto.');
+        throw new ReservationSlotConflict('time', 'Selecciona un horario distinto.');
       }
       const duration = reservation.bookedDurationMin ?? Math.round((reservation.endsAt.getTime() - reservation.startsAt.getTime()) / 60_000);
       const endsAt = await checkSlot(tx, reservation.business, startsAt, duration, reservation.id);
@@ -181,6 +192,7 @@ export const rescheduleReservation = async (req: Request<{ id: string }>, res: R
     if (!changed) return res.status(404).json({ error: 'Reserva no encontrada.' });
     return res.json(changed);
   } catch (error) {
+    if (error instanceof ReservationSlotConflict) return res.status(409).json({ error: error.message, field: error.field });
     if (error instanceof ReservationConflict) return res.status(409).json({ error: error.message });
     throw error;
   }

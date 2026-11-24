@@ -3,10 +3,12 @@ import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { of, map, switchMap, finalize } from 'rxjs';
 import { ApiService } from '../../core/services/api.service';
+import { ValidateForm } from '../../core/forms/validate-form.directive';
+import { imageError } from '../../core/forms/image-validation';
 import { ClientSession, Reservation, SessionEvidence } from '../../models/reservation.model';
 
 @Component({
-  selector: 'app-attention-dialog', imports: [ReactiveFormsModule],
+  selector: 'app-attention-dialog', imports: [ReactiveFormsModule, ValidateForm],
   templateUrl: './attention-dialog.html', styleUrl: './attention-dialog.css',
 })
 export class AttentionDialog {
@@ -22,6 +24,7 @@ export class AttentionDialog {
   readonly editing = signal(false);
   readonly busy = signal(false);
   readonly error = signal('');
+  readonly fileError = signal('');
   readonly file = signal<File | null>(null);
   readonly notes = new FormControl('', { nonNullable: true, validators: [Validators.maxLength(1500)] });
   readonly caption = new FormControl('', { nonNullable: true, validators: [Validators.maxLength(300)] });
@@ -59,8 +62,9 @@ export class AttentionDialog {
     const file = input.files?.[0];
     input.value = '';
     if (!file) return;
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024 || file.size === 0) {
-      this.error.set('Selecciona una imagen JPEG, PNG o WebP de hasta 5 MB.');
+    this.fileError.set(imageError(file, 5));
+    if (this.fileError()) {
+      this.file.set(null);
       return;
     }
     this.error.set('');
@@ -134,6 +138,6 @@ export class AttentionDialog {
 
   private reset() {
     this.reservation.set(null); this.session.set(null); this.editing.set(false);
-    this.error.set(''); this.file.set(null); this.notes.reset(''); this.caption.reset('');
+    this.error.set(''); this.fileError.set(''); this.file.set(null); this.notes.reset(''); this.caption.reset('');
   }
 }

@@ -30,13 +30,14 @@
     </div>
   } @else if (!editing()) { <p class="muted">Sin evidencias adjuntas.</p> }
   @if (editing()) {
-    <form (submit)="$event.preventDefault(); save()">
+    <form appValidateForm (validSubmit)="save()">
       <label for="attention-notes">Notas de atención <span class="muted">(opcional)</span></label>
       <textarea #notesField id="attention-notes" [formControl]="notes" maxlength="1500" rows="4" placeholder="Preferencias, trabajo realizado o recomendaciones..."></textarea>
       <small class="muted">{{ notes.value.length }} / 1500 caracteres</small>
       <label for="attention-image">Agregar evidencia <span class="muted">(opcional)</span></label>
       <p id="image-help" class="muted">JPEG, PNG o WebP, hasta 5 MB. Solo se muestra en el historial privado.</p>
-      <input id="attention-image" type="file" accept="image/jpeg,image/png,image/webp" aria-describedby="image-help" [disabled]="busy()" (change)="selectFile($event)">
+      <input id="attention-image" type="file" accept="image/jpeg,image/png,image/webp" [attr.aria-describedby]="fileError() ? 'image-help evidence-file-error' : 'image-help'" [attr.aria-invalid]="fileError() ? 'true' : null" [disabled]="busy()" (change)="selectFile($event)">
+      @if (fileError()) { <span class="field-error" id="evidence-file-error" role="alert">{{ fileError() }}</span> }
       @if (file(); as selected) {
         <div class="file-selection"><span>{{ selected.name }}</span><button type="button" [disabled]="busy()" (click)="file.set(null)">Quitar selección</button></div>
         <label for="attention-caption">Descripción de la imagen</label><input id="attention-caption" [formControl]="caption" maxlength="300">

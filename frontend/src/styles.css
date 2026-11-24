@@ -80,4 +80,26 @@ p {
 
 ::selection {
   background: rgba(0, 113, 227, 0.18);
-}/* You can add global styles to this file, and also import other style files */
+}
+
+body :is(input, select, textarea)[aria-invalid='true'], body .file-button:has(input[aria-invalid='true']) {
+  border-color: #bd2637;
+  outline: 1px solid #bd2637;
+  outline-offset: 1px;
+}
+
+body :is(input, select, textarea)[aria-invalid='true']:focus {
+  outline-width: 2px;
+}
+
+.field-error {
+  display: block;
+  color: #a5182b;
+  font-size: .875rem;
+  font-weight: 500;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.field-error:empty { display: none; }
+.recurring-choice > .field-error { grid-column: 1 / -1; }

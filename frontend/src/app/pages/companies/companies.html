@@ -13,7 +13,7 @@
         <h2 id="registration-title">Comienza el registro de tu empresa</h2><p>Primero crea tu cuenta de Cronos. Después podrás ingresar los datos de tu empresa.</p><a class="primary" routerLink="/login" [queryParams]="{returnUrl: '/companies', mode: 'register'}">Crear cuenta y registrar mi empresa</a><p>¿Ya tienes cuenta? <a routerLink="/login" [queryParams]="{returnUrl: '/companies', mode: 'login'}">Iniciar sesión para continuar</a></p>
       } @else if (step() === 'business') {
         <h2 id="registration-title">Registra tu empresa</h2><p>{{ auth.currentUser()?.email }}</p>
-        <form (ngSubmit)="save()">
+        <form appValidateForm (validSubmit)="save()">
           <label>Nombre de tu empresa<input name="businessName" [(ngModel)]="form.businessName" required minlength="2" maxlength="100" [disabled]="busy()" placeholder="Ej.: Centro de Bienestar"></label>
           <label>Tipo de negocio<select name="category" [(ngModel)]="form.category" [disabled]="busy()">@for (category of categories; track category.value) { <option [value]="category.value">{{ category.label }}</option> }</select></label>
           <label>Presentación<textarea name="description" [(ngModel)]="form.description" rows="4" maxlength="500" [disabled]="busy()" placeholder="Cuéntanos qué ofreces y cómo atiendes a tus clientes o pacientes."></textarea></label>
@@ -44,8 +44,13 @@
         }
         @if (paymentsAvailable()) {
           @if (!hasMandate()) {
-          <label><input type="checkbox" name="acceptedRecurring" [(ngModel)]="acceptedRecurring" [disabled]="busy()"> Acepto el cobro automático de $7.900 CLP cada mes hasta que cancele la renovación.</label>
-          <button class="webpay-button" type="button" [disabled]="busy() || !acceptedRecurring" (click)="activate()">{{ busy() ? 'Procesando…' : 'Continuar con Mercado Pago' }}</button>
+          <form appValidateForm (validSubmit)="activate()">
+            <div class="recurring-choice">
+              <input id="accepted-recurring" type="checkbox" name="acceptedRecurring" [(ngModel)]="acceptedRecurring" [disabled]="busy()" required data-required-message="Acepta el cobro automático mensual para continuar.">
+              <label for="accepted-recurring">Acepto el cobro automático de $7.900 CLP cada mes hasta que cancele la renovación.</label>
+            </div>
+            <button class="webpay-button" type="submit" [disabled]="busy()">{{ busy() ? 'Procesando…' : 'Continuar con Mercado Pago' }}</button>
+          </form>
           <p>Mercado Pago se abrirá en otra pestaña. Al terminar, vuelve aquí para consultar tu suscripción. Cronos no guarda los datos de tu tarjeta. El perfil se activa después de confirmar el primer cobro.</p>
           }
           <button class="secondary" type="button" [disabled]="busy()" (click)="refresh()">Consultar estado del pago</button>

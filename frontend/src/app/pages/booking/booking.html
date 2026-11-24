@@ -76,8 +76,11 @@
                 type="date"
                 [min]="minDate()"
                 [value]="selectedDate()"
+                [attr.aria-invalid]="dateError() ? 'true' : null"
+                [attr.aria-describedby]="dateError() ? 'booking-date-error' : null"
                 (change)="onDateChange($event)"
               />
+              @if (dateError()) { <span class="field-error" id="booking-date-error" role="alert">{{ dateError() }}</span> }
             </div>
           </section>
 
@@ -105,7 +108,8 @@
                   </div>
                 }
 
-                <div class="time-grid" aria-label="Horarios disponibles">
+                @if (timeError()) { <p class="field-error" id="booking-time-error" role="alert">{{ timeError() }}</p> }
+                <div class="time-grid" role="group" aria-label="Horarios disponibles" [attr.aria-describedby]="timeError() ? 'booking-time-error' : null">
                   @for (time of availableTimes(); track time) {
                     <button
                       type="button"

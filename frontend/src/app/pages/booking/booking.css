@@ -237,7 +237,7 @@ input[type='date'] {
   font: inherit;
 }
 
-input[type='date']:focus-visible,
+input[type='date']:focus-visible:not([aria-invalid='true']),
 .time-button:focus-visible,
 .confirm-button:focus-visible,
 .back-link:focus-visible {

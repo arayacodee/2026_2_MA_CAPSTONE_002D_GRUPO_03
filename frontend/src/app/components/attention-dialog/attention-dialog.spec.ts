@@ -58,7 +58,7 @@ describe('Registro de atención en ventana', () => {
     component.notes.setValue('a'.repeat(1501)); component.save();
     expect(api.completeReservation).not.toHaveBeenCalled();
     component.selectFile({ target: { files: [new File(['pdf'], 'x.pdf', { type: 'application/pdf' })], value: 'x' } } as unknown as Event);
-    expect(component.file()).toBeNull(); expect(component.error()).toContain('JPEG');
+    expect(component.file()).toBeNull(); expect(component.fileError()).toContain('JPEG');
   });
   it('un fallo al editar notas conserva el detalle y no afirma que se guardaron', () => {
     const fixture = TestBed.createComponent(AttentionDialog); fixture.detectChanges();

@@ -7,12 +7,13 @@ import { smsConfigured, startVerification, checkVerification, VerificationProvid
 import { adminLoginLimit } from '../middleware/admin-login-limit.js';
 import { activateProfessionalDemo } from '../controllers/professional-demo.controller.js';
 import { paymentsConfigured } from '../lib/mercado-pago.js';
+import { contactFields } from '../lib/input-validation.js';
 
 const router = Router();
 router.get('/configuration', (_req, res) => res.json({ smsAvailable: smsConfigured(), monthlyPrice: 7900, currency: 'CLP', paymentsAvailable: paymentsConfigured() }));
 router.use(authenticate);
 router.post('/professional-application/activate-demo', adminLoginLimit(), activateProfessionalDemo);
-const contactSchema = z.object({ firstName: z.string().trim().min(2).max(80), lastName: z.string().trim().min(2).max(80), address: z.string().trim().min(5).max(300), phone: z.string().trim().min(1).max(40) }).strict();
+const contactSchema = z.object(contactFields).strict();
 
 
 router.patch('/profile', async (req, res) => {
@@ -21,7 +22,8 @@ router.patch('/profile', async (req, res) => {
   try {
     const user = await prisma.$transaction(async tx => {
       const existing = await tx.user.findUniqueOrThrow({ where: { id: req.authUser!.id } });
-      const changedPhone = existing.phone !== parsed.data.phone;
+      const previousPhone = contactFields.phone.safeParse(existing.phone);
+      const changedPhone = !previousPhone.success || previousPhone.data !== parsed.data.phone;
       return tx.user.update({ where: { id: existing.id }, data: { ...parsed.data, name: `${parsed.data.firstName} ${parsed.data.lastName}`, ...(changedPhone ? { phoneVerifiedAt: null, pendingVerificationSid: null } : {}) }, select: privateUserSelect });
     }, { isolationLevel: 'Serializable' });
     res.json({ user });

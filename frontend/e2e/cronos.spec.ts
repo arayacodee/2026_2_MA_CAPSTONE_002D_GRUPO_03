@@ -24,6 +24,23 @@ async function submitForm(page: Page, path = '/api/auth/login', button = 'Ingres
   return response;
 }
 
+async function submitInvalidField(page: Page, field: Locator, hint: string, button = 'Ingresar') {
+  const attempts: string[] = [];
+  await page.route('**/api/auth/{login,register}', async route => {
+    attempts.push(route.request().url());
+    await route.abort();
+  });
+  await page.getByRole('main').locator('form').getByRole('button', { name: button, exact: true }).click();
+  await expect(field).toBeFocused();
+  await expect(field).toHaveAttribute('aria-invalid', 'true');
+  await expect(field).toHaveAccessibleDescription(hint);
+  await expect(page.getByText(hint, { exact: true })).toBeVisible();
+  expect(attempts).toHaveLength(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
+}
+
+const mobileViewport = { width: 320, height: 720 };
+
 function account(role: Role) {
   const user = process.env[`E2E_${role}_USER`];
   const password = process.env[`E2E_${role}_PASSWORD`];
@@ -96,38 +113,36 @@ test.afterEach(async ({ page }, info) => {
 });
 
 test('01 · Validación · Rechaza el correo vacío', { tag: '@validacion' }, async ({ page }) => {
+  await page.setViewportSize(mobileViewport);
   await page.goto('/login?mode=login');
   const email = page.getByRole('textbox', { name: 'Correo electrónico', exact: true });
   await writePassword(page.getByLabel('Contraseña', { exact: true }), 'Clave-de-validacion-123');
   expect(await email.evaluate(element => (element as HTMLInputElement).validity.valueMissing)).toBe(true);
-  const response = await submitForm(page);
-  expect(response.status()).toBe(400);
-  await expect(page.getByText('Ingresa un correo y una contraseña válidos.', { exact: true })).toBeVisible();
+  await submitInvalidField(page, email, 'Completa este campo.');
   await expect(page).toHaveURL(/\/login\?mode=login$/);
 });
 
 test('02 · Validación · Rechaza el formato de correo incorrecto', { tag: '@validacion' }, async ({ page }) => {
+  await page.setViewportSize(mobileViewport);
   await page.goto('/login?mode=login');
   const email = page.getByRole('textbox', { name: 'Correo electrónico', exact: true });
   await email.fill('correo-invalido');
   await writePassword(page.getByLabel('Contraseña', { exact: true }), 'Clave-de-validacion-123');
   expect(await email.evaluate(element => (element as HTMLInputElement).validity.typeMismatch)).toBe(true);
-  const response = await submitForm(page);
-  expect(response.status()).toBe(400);
-  await expect(page.getByText('Ingresa un correo y una contraseña válidos.', { exact: true })).toBeVisible();
+  await submitInvalidField(page, email, 'Usa un correo válido, por ejemplo nombre@correo.cl.');
 });
 
 test('03 · Validación · Rechaza la contraseña vacía', { tag: '@validacion' }, async ({ page }) => {
+  await page.setViewportSize(mobileViewport);
   await page.goto('/login?mode=login');
   await page.getByRole('textbox', { name: 'Correo electrónico', exact: true }).fill('validacion@cronos.example.invalid');
   const password = page.getByLabel('Contraseña', { exact: true });
   expect(await password.evaluate(element => (element as HTMLInputElement).validity.valueMissing)).toBe(true);
-  const response = await submitForm(page);
-  expect(response.status()).toBe(400);
-  await expect(page.getByText('Ingresa un correo y una contraseña válidos.', { exact: true })).toBeVisible();
+  await submitInvalidField(page, password, 'Completa este campo.');
 });
 
 test('04 · Validación · Rechaza una contraseña de registro de tres caracteres', { tag: '@validacion' }, async ({ page }) => {
+  await page.setViewportSize(mobileViewport);
   await page.goto('/login?mode=register');
   await page.getByRole('textbox', { name: 'Nombre', exact: true }).fill('Prueba');
   await page.getByRole('textbox', { name: 'Apellido', exact: true }).fill('Validacion');
@@ -135,9 +150,7 @@ test('04 · Validación · Rechaza una contraseña de registro de tres caractere
   await writePassword(page.getByLabel('Contraseña', { exact: true }), '123');
   await page.getByRole('textbox', { name: 'Número de teléfono', exact: true }).fill('+56911111111');
   await page.getByRole('textbox', { name: 'Dirección', exact: true }).fill('Direccion de prueba 123');
-  const response = await submitForm(page, '/api/auth/register', 'Crear cuenta');
-  expect(response.status()).toBe(400);
-  await expect(page.getByText('Completa todos los datos. La contraseña debe tener al menos 8 caracteres.', { exact: true })).toBeVisible();
+  await submitInvalidField(page, page.getByLabel('Contraseña', { exact: true }), 'Ingresa al menos 8 caracteres.', 'Crear cuenta');
   await expect(page).toHaveURL(/\/login\?mode=register$/);
 });
 

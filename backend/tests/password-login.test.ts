@@ -14,8 +14,10 @@ test('registro guarda hash y teléfono sin SMS, rechaza duplicados y roles; logi
   const contact = { email: ' CLIENT@EXAMPLE.COM ', password: 'secret-password', firstName: 'Martín', lastName: 'Ibarra', phone: '56 9 1234 5678', address: 'Santiago 123' };
   try {
     const role = response(); await register({ body: { ...contact, role: 'SUPERADMIN' } } as any, role as any); assert.equal(role.code, 400); assert.equal(stored, null);
+    const invalidPhone = response(); await register({ body: { ...contact, phone: 'sin teléfono' } } as any, invalidPhone as any);
+    assert.equal(invalidPhone.code, 400); assert.equal(stored, null);
     const created = response(); await register({ body: contact } as any, created as any);
-    assert.equal(created.code, 201); assert.equal(stored.email, 'client@example.com'); assert.equal(stored.role, 'CLIENT'); assert.equal(stored.phone, contact.phone);
+    assert.equal(created.code, 201); assert.equal(stored.email, 'client@example.com'); assert.equal(stored.role, 'CLIENT'); assert.equal(stored.phone, '+56912345678');
     assert.notEqual(stored.passwordHash, contact.password); assert.ok(await verifyAdminPassword(contact.password, stored.passwordHash)); assert.equal(created.body.user.passwordHash, undefined); assert.equal(created.cookies.length, 1);
     const duplicate = response(); await register({ body: contact } as any, duplicate as any); assert.equal(duplicate.code, 409);
     const wrong = response(); await passwordLogin({ body: { email: contact.email, password: 'incorrect' } } as any, wrong as any); assert.equal(wrong.code, 401); assert.equal(wrong.cookies.length, 0);

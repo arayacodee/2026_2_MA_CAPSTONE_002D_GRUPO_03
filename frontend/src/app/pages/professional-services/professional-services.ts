@@ -1,3 +1,4 @@
+import { ValidateForm } from '../../core/forms/validate-form.directive';
 import { Component, OnInit, signal, computed } from '@angular/core';
 import { businessLabels } from '../../models/business-category';
 import { FormsModule } from '@angular/forms';
@@ -15,6 +16,7 @@ import {
 @Component({
   selector: 'app-professional-services',
   imports: [
+    ValidateForm,
     FormsModule,
     RouterLink
   ],
@@ -291,7 +293,7 @@ export class ProfessionalServices implements OnInit {
     return new Intl.NumberFormat('es-CL', {
       style: 'currency',
       currency: 'CLP',
-      maximumFractionDigits: 0
+      maximumFractionDigits: 2
     }).format(Number(price));
   }
 }

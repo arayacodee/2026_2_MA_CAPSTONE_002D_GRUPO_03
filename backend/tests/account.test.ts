@@ -35,7 +35,7 @@ test('contacto privado invalida verificación al cambiar teléfono y el boceto n
     assert.equal((await request('/profile', contact)).status, 200);
     assert.ok(user.phoneVerifiedAt);
     assert.equal((await request('/profile', { ...contact, phone: '56 9 8765 4321' })).status, 200);
-    assert.equal(user.phone, '56 9 8765 4321');
+    assert.equal(user.phone, '+56987654321');
     assert.equal(user.phoneVerifiedAt, null);
     assert.equal(user.pendingVerificationSid, null);
     assert.equal(user.role, 'CLIENT');

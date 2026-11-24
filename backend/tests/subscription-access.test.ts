@@ -32,10 +32,14 @@ test('checkout exige sesión, fija importe, reutiliza intento y no permite cance
   await new Promise<void>(resolve => server.once('listening', resolve));
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}/subscriptions`;
   const cookie = `cronos_session=${await createSessionToken('client')}`;
-  const send = (path: string, authenticated = true) => fetch(base + path, { method: 'POST', headers: { ...(authenticated ? { cookie } : {}), 'Content-Type': 'application/json' }, body: JSON.stringify({ price: 1, userId: 'victim' }) });
+  const send = (path: string, authenticated = true, acceptedRecurring: unknown = true) => fetch(base + path, { method: 'POST', headers: { ...(authenticated ? { cookie } : {}), 'Content-Type': 'application/json' }, body: JSON.stringify({ acceptedRecurring, price: 1, userId: 'victim' }) });
   try {
     assert.equal((await send('/checkout', false)).status, 401);
     assert.equal((await send('/webhook?data.id=provider&type=subscription_preapproval')).status, 401);
+    assert.equal((await send('/checkout', true, false)).status, 400);
+    assert.equal((await send('/checkout', true, 'true')).status, 400);
+    assert.equal(local, null);
+    assert.equal(providerCalls, 0);
     const first = await send('/checkout'); assert.equal(first.status, 200);
     const second = await send('/checkout'); assert.equal(second.status, 200);
     assert.deepEqual(await first.json(), await second.json()); assert.equal(providerCalls, 1);

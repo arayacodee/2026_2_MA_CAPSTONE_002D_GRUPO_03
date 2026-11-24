@@ -1,3 +1,4 @@
+import { ValidateForm } from '../../core/forms/validate-form.directive';
 import {
   Component,
   DestroyRef,
@@ -29,7 +30,7 @@ import { AttentionDialog } from '../../components/attention-dialog/attention-dia
 
 @Component({
   selector: 'app-professional-dashboard',
-  imports: [RouterLink, AttentionDialog],
+  imports: [ValidateForm, RouterLink, AttentionDialog],
   templateUrl: './professional-dashboard.html',
   styleUrl: './professional-dashboard.css'
 })
@@ -203,17 +204,16 @@ export class ProfessionalDashboard implements OnInit {
     this.refreshAgenda.next();
   }
 
-  reprogram(event: Event, id: string, day: string, time: string): void {
-    event.preventDefault();
+  reprogram(id: string, day: string, time: string, validation: ValidateForm): void {
     if (!day || !time) return;
-    this.changeReservation(this.api.rescheduleReservation(id, day, time), 'Reserva reprogramada.');
+    this.changeReservation(this.api.rescheduleReservation(id, day, time), 'Reserva reprogramada.', validation);
   }
 
   markNoShow(id: string): void {
     this.changeReservation(this.api.markNoShow(id), 'Inasistencia registrada.');
   }
 
-  private changeReservation(request: ReturnType<ApiService['markNoShow']>, message: string): void {
+  private changeReservation(request: ReturnType<ApiService['markNoShow']>, message: string, validation?: ValidateForm): void {
     if (this.changingReservation()) return;
     this.changingReservation.set(true);
     this.errorMessage.set('');
@@ -228,7 +228,14 @@ export class ProfessionalDashboard implements OnInit {
         this.successMessage.set(message);
         this.refreshReservations();
       },
-      error: err => this.errorMessage.set(err?.error?.error ?? 'No fue posible actualizar la reserva.'),
+      error: err => {
+        const field = err?.error?.field;
+        if (validation && (field === 'day' || field === 'time')) {
+          validation.show(field, err.error.error);
+        } else {
+          this.errorMessage.set(err?.error?.error ?? 'No fue posible actualizar la reserva.');
+        }
+      },
     });
   }
 

@@ -3,5 +3,7 @@
 .steps { display: flex; gap: 16px; margin-bottom: 28px; color: var(--text-secondary); } .steps .active { color: var(--accent); font-weight: 600; } form, label { display: grid; gap: 10px; } form { gap: 22px; } label { font-weight: 600; } input, select, textarea { width: 100%; min-width: 0; padding: 13px; border: 1px solid var(--border-strong); border-radius: 12px; background: white; }
 button, .primary { padding: 13px 18px; border-radius: 12px; border: 0; cursor: pointer; display: inline-block; text-decoration: none; } .primary { color: white; background: var(--accent); text-align: center; } button:disabled { opacity: .6; cursor: default; } .webpay-button { width: 100%; color: white; background: #4b287f; } .secondary { background: var(--surface-secondary); border: 1px solid var(--border-strong); } .order-summary { margin: 24px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); } .order-summary p { display: flex; justify-content: space-between; gap: 16px; } .order-summary strong { color: var(--text-primary); } .error { color: var(--danger); } .success { color: var(--success); }
 @media(max-width: 760px) { .registration-grid { grid-template-columns: 1fr; } .plan-card, .registration-card { padding: 24px; } }
-label:has(input[type="checkbox"]) { display: flex; align-items: flex-start; margin: 20px 0; font-size: 14px; }
-input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; margin-top: 3px; }
+.recurring-choice { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 8px 10px; }
+.recurring-choice label { grid-area: 1 / 2; font-size: .875rem; }
+.recurring-choice input { grid-area: 1 / 1; width: 18px; height: 18px; margin: 2px 0 0; }
+.registration-card > :is(.primary, .secondary) + .secondary { margin-top: 10px; }

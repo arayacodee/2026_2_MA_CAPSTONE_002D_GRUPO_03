@@ -11,6 +11,7 @@ import { adminLoginLimit } from '../middleware/admin-login-limit.js';
 import { recordAdminAction } from '../lib/admin-audit.js';
 import { evidenceForRead } from '../lib/evidence-media.js';
 import { addCalendarMonths } from '../lib/calendar-months.js';
+import { serviceFields } from '../lib/input-validation.js';
 
 const router = Router();
 router.use(authenticate, requireRole('SUPERADMIN'));
@@ -34,7 +35,7 @@ const text = z.string().trim().min(2).max(100);
 const description = z.string().max(500).nullable();
 const userFields = z.object({ name: text.nullable().optional(), role: z.enum(['CLIENT', 'PROFESSIONAL']).optional() }).strict();
 const businessFields = z.object({ ...businessProfileFields, name: text.optional(), description: description.optional() }).strict();
-const serviceFields = z.object({ name: text.optional(), description: description.optional(), durationMin: z.number().int().min(1).max(1440).optional(), price: z.number().min(0).max(99999999.99).optional(), isActive: z.boolean().optional() }).strict();
+const serviceUpdateSchema = z.object(serviceFields).partial().strict();
 const availabilityFields = z.object({ dayOfWeek: z.number().int().min(1).max(7).optional(), startTime: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/).optional(), endTime: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/).optional(), isActive: z.boolean().optional() }).strict();
 const sessionFields = z.object({ notes: z.string().max(1500).nullable().optional() }).strict();
 const evidenceFields = z.object({ caption: z.string().max(300).nullable().optional() }).strict();
@@ -109,7 +110,7 @@ router.get('/:resource', async (req, res) => {
 });
 
 router.post('/users', async (req, res) => {
-  const parsed = z.object({ email: z.string().trim().toLowerCase().email(), name: text.nullable().optional(), role: z.enum(['CLIENT', 'PROFESSIONAL']) }).strict().safeParse(req.body);
+  const parsed = z.object({ email: z.string().trim().toLowerCase().max(254).pipe(z.email()), name: text.nullable().optional(), role: z.enum(['CLIENT', 'PROFESSIONAL']) }).strict().safeParse(req.body);
   if (!parsed.success) return void res.status(400).json({ error: 'Datos de usuario inválidos.' });
   const existing = await prisma.user.findFirst({ where: { email: { equals: parsed.data.email, mode: 'insensitive' } } });
   if (existing) return void res.status(409).json({ error: 'El correo ya está registrado.' });
@@ -240,7 +241,7 @@ router.delete('/:resource/:id', async (req, res) => {
 
 router.patch('/:resource/:id', async (req, res) => {
   if (!z.string().uuid().safeParse(req.params.id).success) return void res.status(400).json({ error: 'Identificador inválido.' });
-  const schemas = { users: userFields, businesses: businessFields, services: serviceFields, availabilities: availabilityFields, sessions: sessionFields, evidences: evidenceFields };
+  const schemas = { users: userFields, businesses: businessFields, services: serviceUpdateSchema, availabilities: availabilityFields, sessions: sessionFields, evidences: evidenceFields };
   const resource = req.params.resource as keyof typeof schemas;
   if (!Object.hasOwn(schemas, resource)) return void res.status(404).json({ error: 'Sección no editable.' });
   const parsed = schemas[resource].safeParse(req.body);
@@ -268,7 +269,7 @@ router.patch('/:resource/:id', async (req, res) => {
           break;
         }
         case 'businesses': updated = await tx.business.update({ where, data: businessFields.parse(req.body) }); break;
-        case 'services': updated = await tx.service.update({ where, data: serviceFields.parse(req.body) }); break;
+        case 'services': updated = await tx.service.update({ where, data: serviceUpdateSchema.parse(req.body) }); break;
         case 'availabilities': {
           const data = availabilityFields.parse(req.body);
           const current = await tx.availability.findUnique({ where });

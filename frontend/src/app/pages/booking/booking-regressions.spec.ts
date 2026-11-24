@@ -25,7 +25,13 @@ describe('Reservas: fechas y solicitudes de horarios', () => {
     fixture.detectChanges();
     http.expectOne(`${environment.apiUrl}/api/services/service`).flush({ id: 'service', businessId: 'business' });
     http.expectOne(`${environment.apiUrl}/api/businesses/business`).flush({ id: 'business', timezone: 'America/Santiago' });
-    const change = (value: string) => fixture.componentInstance.onDateChange({ target: { value } } as unknown as Event);
+    const input = document.createElement('input');
+    input.type = 'date';
+    input.addEventListener('change', event => fixture.componentInstance.onDateChange(event));
+    const change = (value: string) => {
+      input.value = value;
+      input.dispatchEvent(new Event('change'));
+    };
     change('2026-10-07');
     const previous = http.expectOne(req => req.params.get('date') === '2026-10-07' || req.url.includes('date=2026-10-07'));
     change('2026-10-08');

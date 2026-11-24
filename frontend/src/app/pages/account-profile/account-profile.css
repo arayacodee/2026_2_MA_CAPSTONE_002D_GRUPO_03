@@ -167,7 +167,7 @@ input:hover {
   background: var(--surface);
   border-color: #686872;
 }
-input:focus {
+input:focus:not([aria-invalid='true']) {
   background: var(--surface);
   border-color: var(--accent);
 }
@@ -221,7 +221,7 @@ button:disabled {
 }
 button:focus-visible,
 a:focus-visible,
-input:focus-visible {
+input:focus-visible:not([aria-invalid='true']) {
   outline: 3px solid #0071e3;
   outline-offset: 3px;
 }

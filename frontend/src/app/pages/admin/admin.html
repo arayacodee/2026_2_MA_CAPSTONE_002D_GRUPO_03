@@ -41,7 +41,7 @@
 
       <ng-template #recordToolbar>
         <div class="record-toolbar">
-          <form class="search-field" (ngSubmit)="applySearch()">
+          <form class="search-field" appValidateForm (validSubmit)="applySearch()">
             <label for="admin-search">{{ grouped() ? 'Buscar registros de este negocio' : 'Buscar en toda la sección' }}</label>
             <div class="search-controls">
               <input #searchInput id="admin-search" type="search" maxlength="120" [value]="search()" [disabled]="saving()"
@@ -67,7 +67,7 @@
       }
 
       <ng-template #editorForm>
-        <form #editor (ngSubmit)="save()" class="editor">
+        <form #editor appValidateForm #validation="appValidateForm" (validSubmit)="save(validation)" class="editor">
           <header>
             <h3>{{ creating() ? 'Crear cuenta' : 'Editar datos' }}</h3>
             @if (creating()) {
@@ -81,7 +81,7 @@
             @if (creating()) {
               <div class="form-field full-field">
                 <label for="admin-email">Correo electrónico</label>
-                <input id="admin-email" name="email" type="email" required [(ngModel)]="draft['email']" [disabled]="saving()" />
+                <input id="admin-email" name="email" type="email" required data-public-email maxlength="254" [(ngModel)]="draft['email']" [disabled]="saving()" />
               </div>
             }
             @for (item of section().fields; track item.key) {
@@ -107,7 +107,7 @@
                       </select>
                     }
                     @case ('textarea') {
-                      <textarea [id]="'admin-' + item.key" [name]="item.key" [(ngModel)]="draft[item.key]" [disabled]="saving()" rows="4"></textarea>
+                      <textarea [id]="'admin-' + item.key" [name]="item.key" [(ngModel)]="draft[item.key]" [disabled]="saving()" [attr.maxlength]="maxLength[item.key]" rows="4"></textarea>
                     }
                     @case ('role') {
                       <select [id]="'admin-' + item.key" [name]="item.key" [(ngModel)]="draft[item.key]" [disabled]="saving()">
@@ -121,11 +121,16 @@
                     }
                     @case ('number') {
                       <input [id]="'admin-' + item.key" [name]="item.key" type="number"
-                        [(ngModel)]="draft[item.key]" [disabled]="saving()" [step]="item.key === 'price' ? '0.01' : '1'" />
+                        [(ngModel)]="draft[item.key]" [disabled]="saving()" required
+                        [min]="numberLimits[item.key].min" [max]="numberLimits[item.key].max" [step]="numberLimits[item.key].step" />
                     }
                     @default {
                       <input [id]="'admin-' + item.key" [name]="item.key" [type]="item.type"
-                        [(ngModel)]="draft[item.key]" [disabled]="saving()" />
+                        [(ngModel)]="draft[item.key]" [disabled]="saving()"
+                        [required]="item.type === 'time' || (item.key === 'name' && section().key !== 'users')"
+                        [attr.minlength]="item.key === 'name' ? 2 : null"
+                        [attr.maxlength]="maxLength[item.key] ?? null"
+                        [attr.data-after]="item.key === 'endTime' ? 'admin-startTime' : null" />
                     }
                   }
                 }
@@ -214,7 +219,7 @@
                       <ng-container [ngTemplateOutlet]="editorForm" />
                     }
                     @if (passwordUser()?.id === record.id) {
-                      <form #editor class="editor" (ngSubmit)="savePassword()">
+                      <form #editor class="editor" appValidateForm (validSubmit)="savePassword()">
                         <header><h3>Cambiar contraseña</h3><p>{{ value(record, 'email') }}</p></header>
                         <div class="form-grid">
                           <label class="form-field">
@@ -224,7 +229,7 @@
                           </label>
                           <label class="form-field">
                             Confirmar contraseña
-                            <input name="confirmPassword" type="password" autocomplete="new-password" [(ngModel)]="confirmPassword"
+                            <input name="confirmPassword" data-match="newPassword" type="password" autocomplete="new-password" [(ngModel)]="confirmPassword"
                               required minlength="8" maxlength="256" [disabled]="saving()" />
                           </label>
                         </div>
@@ -236,7 +241,7 @@
                       </form>
                     }
                     @if (settingState()?.id === record.id) {
-                      <form #editor class="editor" (ngSubmit)="saveState()">
+                      <form #editor class="editor" appValidateForm (validSubmit)="saveState()">
                         <header><h3>{{ stateActionLabel(record) }}</h3><p>{{ row.title }}</p></header>
                         <label class="form-field">Motivo
                           <input name="reason" [(ngModel)]="reason" required minlength="3" maxlength="300" [disabled]="saving()" />
@@ -250,7 +255,7 @@
                     }
                     @if (grantingAccess(); as access) {
                       @if (access.rowId === record.id) {
-                        <form #editor class="editor" (submit)="saveTemporaryAccess($event, duration.value, accessReason.value)">
+                        <form #editor class="editor" appValidateForm (validSubmit)="saveTemporaryAccess($event, duration.value, accessReason.value)">
                           <header>
                             <h3>{{ access.user['isSuspended'] ? 'Reactivar cuenta' : 'Habilitar acceso temporal' }}</h3>
                             <p>El período se cuenta desde hoy y el acceso se habilita sin cobro ni renovación automática. Se conservan los períodos pagados y los accesos temporales con un vencimiento posterior.</p>
@@ -282,21 +287,21 @@
                       }
                     }
                     @if (deleting()?.id === record.id) {
-                      <section #editor class="delete-confirmation" aria-label="Confirmar eliminación">
+                      <form #editor class="delete-confirmation" aria-label="Confirmar eliminación" appValidateForm (validSubmit)="confirmDeletion()">
                         <h4>Eliminar {{ row.title }}</h4>
                         <p>{{ deletionEffects[section().key] }}</p>
                         <p><strong>Esta eliminación es permanente y no se puede deshacer.</strong></p>
                         <label class="form-field">Motivo
-                          <input name="deleteReason" [(ngModel)]="reason" maxlength="300" [disabled]="saving()" />
+                          <input name="deleteReason" [(ngModel)]="reason" required minlength="3" maxlength="300" [disabled]="saving()" />
                         </label>
                         @if (error()) { <p class="notice error" role="alert">{{ error() }}</p> }
                         <div class="actions">
                           <button type="button" class="cancel-deletion" [disabled]="saving()" (click)="dismissEditor()">Conservar registro</button>
-                          <button type="button" class="danger" [disabled]="saving()" (click)="confirmDeletion()">
+                          <button type="submit" class="danger" [disabled]="saving()">
                             {{ saving() ? 'Eliminando…' : 'Confirmar eliminación' }}
                           </button>
                         </div>
-                      </section>
+                      </form>
                     }
 
                     <details class="record-data">

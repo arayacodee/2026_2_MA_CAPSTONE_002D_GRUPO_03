@@ -1,3 +1,4 @@
+import { ValidateForm } from '../../core/forms/validate-form.directive';
 import { AfterViewInit, Component, ElementRef, OnDestroy, OnInit, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -8,13 +9,16 @@ import { environment } from '../../../environments/environment';
 let initializedGoogle: GoogleAccountsId | null = null;
 let activeCredentialHandler: ((response: GoogleCredentialResponse) => void) | null = null;
 
-@Component({ selector: 'app-login', imports: [RouterLink, FormsModule], templateUrl: './login.html', styleUrl: './login.css' })
+@Component({ selector: 'app-login', imports: [ValidateForm, RouterLink, FormsModule], templateUrl: './login.html', styleUrl: './login.css' })
 export class Login implements OnInit, AfterViewInit, OnDestroy {
   readonly loading = signal(false);
   readonly errorMessage = signal('');
   readonly googleErrorMessage = signal('');
   readonly mode = signal<'login' | 'register' | null>(null);
   private readonly googleButton = viewChild.required<ElementRef<HTMLElement>>('googleButton');
+  private readonly formValidation = viewChild(ValidateForm);
+  private googleButtonObserver?: ResizeObserver;
+  private googleButtonWidth = 0;
   private googleScript: HTMLScriptElement | null = null;
   private destroyed = false;
   private readonly onGoogleCredential = (response: GoogleCredentialResponse) => this.handleGoogleCredential(response);
@@ -37,6 +41,12 @@ export class Login implements OnInit, AfterViewInit, OnDestroy {
   }
   ngAfterViewInit(): void {
     if (this.auth.currentUser()) return;
+    if (typeof ResizeObserver !== 'undefined') {
+      this.googleButtonObserver = new ResizeObserver(() => {
+        if (window.google?.accounts?.id) this.renderGoogleButton();
+      });
+      this.googleButtonObserver.observe(this.googleButton().nativeElement);
+    }
     if (window.google?.accounts?.id) { this.renderGoogleButton(); return; }
 
     let script = document.querySelector<HTMLScriptElement>('script[src="https://accounts.google.com/gsi/client"]');
@@ -54,6 +64,7 @@ export class Login implements OnInit, AfterViewInit, OnDestroy {
   }
   ngOnDestroy(): void {
     this.destroyed = true;
+    this.googleButtonObserver?.disconnect();
     if (activeCredentialHandler === this.onGoogleCredential) activeCredentialHandler = null;
     this.googleScript?.removeEventListener('load', this.onGoogleScriptLoad);
     this.googleScript?.removeEventListener('error', this.onGoogleScriptError);
@@ -63,6 +74,9 @@ export class Login implements OnInit, AfterViewInit, OnDestroy {
     const google = window.google?.accounts?.id;
     if (!google) { this.onGoogleScriptError(); return; }
     const container = this.googleButton().nativeElement;
+    const width = Math.min(320, container.clientWidth || 320);
+    if (this.googleButtonWidth === width && initializedGoogle === google) return;
+    this.googleButtonWidth = width;
     activeCredentialHandler = this.onGoogleCredential;
     if (initializedGoogle !== google) {
       google.initialize({ client_id: environment.googleClientId, callback: response => activeCredentialHandler?.(response) });
@@ -71,7 +85,7 @@ export class Login implements OnInit, AfterViewInit, OnDestroy {
     container.replaceChildren();
     google.renderButton(container, {
       type: 'standard', theme: 'outline', size: 'large', text: 'continue_with',
-      shape: 'rectangular', width: Math.min(320, container.clientWidth || 320), locale: 'es'
+      shape: 'rectangular', width, locale: 'es'
     });
     this.googleErrorMessage.set('');
   }
@@ -84,12 +98,27 @@ export class Login implements OnInit, AfterViewInit, OnDestroy {
       error: error => { if (this.destroyed) return; this.loading.set(false); this.errorMessage.set(error?.error?.error ?? 'No fue posible iniciar sesión con Google.'); }
     });
   }
-  choose(mode: 'login' | 'register'): void { this.mode.set(mode); this.errorMessage.set(''); this.form.password = ''; }
-  submit(): void {
+  choose(mode: 'login' | 'register'): void {
+    this.formValidation()?.reset();
+    this.mode.set(mode);
+    this.errorMessage.set('');
+    this.form.password = '';
+  }
+  submit(validation?: ValidateForm): void {
     if (this.loading() || !this.mode()) return;
     this.loading.set(true); this.errorMessage.set('');
     const request = this.mode() === 'login' ? this.auth.login(this.form.email, this.form.password) : this.auth.register(this.form);
-    request.subscribe({ next: user => { this.form.password = ''; this.loading.set(false); this.navigateAfterLogin(user); }, error: err => { this.loading.set(false); this.errorMessage.set(err?.error?.error ?? 'No fue posible acceder. Intenta nuevamente.'); } });
+    request.subscribe({
+      next: user => { this.form.password = ''; this.loading.set(false); this.navigateAfterLogin(user); },
+      error: err => {
+        this.loading.set(false);
+        if (this.mode() === 'register' && err.status === 409 && validation) {
+          validation.show('email', 'Ya existe una cuenta con este correo. Inicia sesión o usa otro correo.');
+        } else {
+          this.errorMessage.set(err?.error?.error ?? 'No fue posible acceder. Intenta nuevamente.');
+        }
+      }
+    });
   }
   private navigateAfterLogin(user: User): void {
     const target = this.route.snapshot.queryParamMap.get('returnUrl');

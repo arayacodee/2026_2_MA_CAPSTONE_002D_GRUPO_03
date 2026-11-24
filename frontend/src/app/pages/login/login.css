@@ -1,5 +1,6 @@
 .login-page {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   min-height: calc(100vh - 64px);
   place-items: start center;
   padding: clamp(64px, 12vh, 120px) 24px 80px;
@@ -16,7 +17,7 @@
 .admin-login-form input { min-width: 0; width: 100%; padding: 12px; border: 1px solid var(--border-strong); border-radius: var(--radius-small); }
 .admin-login-form button { padding: 13px; margin-top: 8px; border: 0; border-radius: var(--radius-small); background: var(--accent); color: white; cursor: pointer; }
 .admin-login-form button:disabled { opacity: .5; cursor: default; }
-.admin-login-form :focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.admin-login-form :focus-visible:not([aria-invalid='true']) { outline: 3px solid var(--accent); outline-offset: 3px; }
 
 .login-card {
   width: min(100%, 460px);
@@ -51,6 +52,7 @@
 
 .google-section {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   justify-items: center;
   gap: 16px;
   margin-top: 26px;
@@ -65,6 +67,8 @@
 }
 
 #google-signin-button {
+  width: 100%;
+  max-width: 320px;
   min-height: 44px;
 }
 

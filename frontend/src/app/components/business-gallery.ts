@@ -2,12 +2,14 @@ import { Component, input, inject, signal, OnChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../environments/environment';
+import { ValidateForm } from '../core/forms/validate-form.directive';
+import { imageError } from '../core/forms/image-validation';
 interface Photo { id: string; imageUrl: string; caption: string | null; }
-@Component({ selector: 'app-business-gallery', imports: [FormsModule], template: `
+@Component({ selector: 'app-business-gallery', imports: [FormsModule, ValidateForm], template: `
 <section class="gallery"><h2>Fotos del negocio</h2>
 @if (error()) { <p role="alert">{{ error() }}</p> }
 @if (editable()) {
-<form (ngSubmit)="upload(fileInput)"><label>Seleccionar foto<input #fileInput name="image" type="file" accept="image/jpeg,image/png,image/webp" (change)="select($event)" [disabled]="busy()"></label>
+<form appValidateForm (validSubmit)="upload(fileInput)"><label>Seleccionar foto<input #fileInput name="image" type="file" accept="image/jpeg,image/png,image/webp" (change)="select($event)" [disabled]="busy()" [attr.aria-invalid]="fileError() ? 'true' : null" [attr.aria-describedby]="fileError() ? 'gallery-file-error' : null"><span id="gallery-file-error" class="field-error" role="alert">{{ fileError() }}</span></label>
 <label>Descripción (opcional)<input name="caption" [(ngModel)]="caption" maxlength="300" [disabled]="busy()"></label>
 <small>Fotos públicas · JPEG, PNG o WebP · máximo 5 MB. No subas información privada de clientes o pacientes.</small>
 <button type="submit" [disabled]="busy() || !file">{{ busy() ? 'Procesando…' : 'Subir foto' }}</button></form>
@@ -30,7 +32,7 @@ input::file-selector-button { margin-right: 10px; padding: 7px 12px; border: 1px
 button { min-height: 42px; padding: 10px 17px; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--surface); color: var(--text-primary); cursor: pointer; font: inherit; font-size: 13px; font-weight: 600; }
 button[type=submit] { grid-column: 1 / -1; justify-self: end; background: var(--text-primary); border-color: var(--text-primary); color: white; }
 button:disabled { opacity: .5; cursor: default; }
-input:focus-visible, button:focus-visible, a:focus-visible { outline: 3px solid #0071e3; outline-offset: 3px; }
+input:focus-visible:not([aria-invalid='true']), button:focus-visible, a:focus-visible { outline: 3px solid #0071e3; outline-offset: 3px; }
 small { grid-column: 1 / -1; color: var(--text-secondary); font-size: 12px; line-height: 1.6; }
 .photos > p { grid-column: 1 / -1; margin: 0; padding: 30px; border: 1px dashed var(--border-strong); border-radius: var(--radius-medium); background: var(--surface-secondary); color: var(--text-secondary); font-size: 14px; text-align: center; }
 @media (max-width: 520px) { .gallery { padding: 22px; } form { grid-template-columns: 1fr; } button[type=submit] { justify-self: stretch; } }
@@ -43,12 +45,14 @@ export class BusinessGallery implements OnChanges {
   readonly photos = signal<Photo[]>([]);
   readonly busy = signal(false);
   readonly error = signal('');
+  readonly fileError = signal('');
   file: File | null = null;
   caption = '';
   ngOnChanges(): void { this.http.get<Photo[]>(`${this.base}/${this.businessId()}/photos`).subscribe({ next: photos => this.photos.set(photos), error: () => this.error.set('No fue posible cargar las fotos.') }); }
   select(event: Event): void {
     this.error.set(''); const input = event.target as HTMLInputElement; this.file = input.files?.[0] ?? null;
-    if (this.file && (!['image/jpeg', 'image/png', 'image/webp'].includes(this.file.type) || this.file.size > 5 * 1024 * 1024)) { this.file = null; input.value = ''; this.error.set('Usa JPEG, PNG o WebP de hasta 5 MB.'); }
+    this.fileError.set(this.file ? imageError(this.file, 5) : '');
+    if (this.fileError()) { this.file = null; input.value = ''; }
   }
   upload(input: HTMLInputElement): void {
     if (!this.file || this.busy()) return;

@@ -1,3 +1,4 @@
+import { ValidateForm } from '../../core/forms/validate-form.directive';
 import { afterNextRender, Component, computed, DestroyRef, ElementRef, inject, Injector, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
@@ -13,11 +14,19 @@ interface Section { key: AdminSectionKey; label: string; fields: Field[]; }
 interface AdminPage { items: AdminRecord[]; hasMore: boolean; }
 const field = (key: string, label: string, type: Field['type'] = 'text'): Field => ({ key, label, type });
 
-@Component({ selector: 'app-admin', imports: [FormsModule, NgTemplateOutlet], templateUrl: './admin.html', styleUrl: './admin.css' })
+@Component({ selector: 'app-admin', imports: [ValidateForm, FormsModule, NgTemplateOutlet], templateUrl: './admin.html', styleUrl: './admin.css' })
 export class Admin {
   readonly categories = businessCategories;
   readonly modes = attentionModes;
   readonly recordFields = adminRecordFields;
+  readonly maxLength: Record<string, number> = {
+    name: 100, professionalName: 100, description: 500, specialties: 300, address: 300, notes: 1500, caption: 300,
+  };
+  readonly numberLimits: Record<string, { min: number; max: number; step: number }> = {
+    dayOfWeek: { min: 1, max: 7, step: 1 },
+    durationMin: { min: 1, max: 1439, step: 1 },
+    price: { min: 0, max: 99999999.99, step: 0.01 },
+  };
   private readonly injector = inject(Injector);
   private readonly editor = viewChild<ElementRef<HTMLElement>>('editor');
   private readonly sectionTitle = viewChild<ElementRef<HTMLHeadingElement>>('sectionTitle');
@@ -411,14 +420,27 @@ export class Admin {
       });
   }
   close(): void { this.selected.set(null); this.creating.set(false); }
-  save(): void {
+  save(validation?: ValidateForm): void {
     const data = { ...this.draft };
     const record = this.selected();
     if (this.section().key === 'users' && record?.['role'] === 'SUPERADMIN') delete data['role'];
-    for (const key of ['name', 'description', 'notes', 'caption', 'professionalName', 'specialties', 'address', 'attentionMode']) if (data[key] === '') data[key] = null;
+    for (const key of ['name', 'description', 'notes', 'caption', 'professionalName', 'specialties', 'address', 'attentionMode']) {
+      const value = data[key];
+      if (typeof value === 'string' && !value.trim()) data[key] = null;
+    }
     this.saving.set(true); this.error.set('');
     const request = this.creating() ? this.http.post(`${this.base}/users`, data) : this.http.patch(`${this.base}/${this.section().key}/${record!.id}`, data);
-    request.subscribe({ next: () => { this.saving.set(false); this.close(); this.message.set('Cambios guardados.'); this.load(); }, error: err => { this.saving.set(false); this.error.set(err?.error?.error ?? 'No fue posible guardar los cambios.'); } });
+    request.subscribe({
+      next: () => { this.saving.set(false); this.close(); this.message.set('Cambios guardados.'); this.load(); },
+      error: err => {
+        this.saving.set(false);
+        if (this.creating() && err.status === 409 && validation) {
+          validation.show('admin-email', 'Este correo ya está registrado. Elige otro correo.');
+        } else {
+          this.error.set(err?.error?.error ?? 'No fue posible guardar los cambios.');
+        }
+      },
+    });
   }
   reservationAction(record: AdminRecord, action: 'cancel' | 'complete'): void {
     this.saving.set(true); this.error.set(''); this.message.set('');

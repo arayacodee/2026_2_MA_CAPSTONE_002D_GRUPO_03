@@ -9,13 +9,13 @@
 <div class="access-options"><button type="button" (click)="choose('login')" [class.selected]="mode() === 'login'" [disabled]="loading()">Iniciar sesión</button><button type="button" (click)="choose('register')" [class.selected]="mode() === 'register'" [disabled]="loading()">Registrarme</button></div>
 @if (mode()) {
 <h2>{{ mode() === 'login' ? 'Iniciar sesión' : 'Crear mi cuenta' }}</h2>
-<form (ngSubmit)="submit()">
+<form appValidateForm #validation="appValidateForm" (validSubmit)="submit(validation)">
 @if (mode() === 'register') {
 <label>Nombre<input name="firstName" autocomplete="given-name" [(ngModel)]="form.firstName" required minlength="2" maxlength="80" [disabled]="loading()"></label>
 <label>Apellido<input name="lastName" autocomplete="family-name" [(ngModel)]="form.lastName" required minlength="2" maxlength="80" [disabled]="loading()"></label>
 }
-<label>Correo electrónico<input name="email" type="email" autocomplete="email" [(ngModel)]="form.email" required maxlength="254" [disabled]="loading()"></label>
-<label>Contraseña<input name="password" type="password" [autocomplete]="mode() === 'register' ? 'new-password' : 'current-password'" [(ngModel)]="form.password" required [minlength]="mode() === 'register' ? 8 : 1" maxlength="256" [disabled]="loading()"></label>
+<label>Correo electrónico<input name="email" type="email" data-public-email autocomplete="email" [(ngModel)]="form.email" required maxlength="254" [disabled]="loading()"></label>
+<label><span id="login-password-label">Contraseña</span><input name="password" type="password" aria-labelledby="login-password-label" [autocomplete]="mode() === 'register' ? 'new-password' : 'current-password'" [(ngModel)]="form.password" required [minlength]="mode() === 'register' ? 8 : 1" maxlength="256" [disabled]="loading()"></label>
 @if (mode() === 'register') {
 <small>Usa al menos 8 caracteres.</small>
 <label>Número de teléfono<input name="phone" type="tel" autocomplete="tel" [(ngModel)]="form.phone" required maxlength="40" [disabled]="loading()"></label>

@@ -58,7 +58,7 @@ const slotsQuerySchema = z.object({
     }, "Invalid date"),
 });
 
-const timeToMinutes = (time: string): number => {
+export const timeToMinutes = (time: string): number => {
   const [hours, minutes] = time.split(":").map(Number);
 
   return hours * 60 + minutes;
@@ -440,6 +440,8 @@ export const getAvailableSlots = async (
     const slots = new Set<string>();
 
     const now = new Date();
+    const localTime = new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+    const localDay = new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' });
 
     for (
       const availability
@@ -491,7 +493,10 @@ export const getAvailableSlots = async (
 
         if (
           !isPast &&
-          !hasConflict
+          !hasConflict &&
+          localTime.format(slotStart) === slot &&
+          localDay.format(slotEnd) === date &&
+          localTime.format(slotEnd) <= availability.endTime
         ) {
           slots.add(slot);
         }

@@ -1,3 +1,4 @@
+import { ValidateForm } from '../../core/forms/validate-form.directive';
 import { Component, HostListener, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -6,7 +7,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { ApiService } from '../../core/services/api.service';
 import { BusinessCategory, businessCategories } from '../../models/business-category';
 
-@Component({ selector: 'app-companies', imports: [FormsModule, RouterLink, DatePipe], templateUrl: './companies.html', styleUrl: './companies.css' })
+@Component({ selector: 'app-companies', imports: [ValidateForm, FormsModule, RouterLink, DatePipe], templateUrl: './companies.html', styleUrl: './companies.css' })
 export class Companies {
   readonly auth = inject(AuthService);
   private readonly api = inject(ApiService);
@@ -59,7 +60,7 @@ export class Companies {
     const checkoutTab = window.open('about:blank', '_blank');
     if (checkoutTab) checkoutTab.opener = null;
     this.busy.set(true); this.error.set('');
-    this.api.subscriptionCheckout().subscribe({
+    this.api.subscriptionCheckout(this.acceptedRecurring).subscribe({
       next: response => {
         this.busy.set(false); this.checkoutOpened.set(true);
         if (checkoutTab && !checkoutTab.closed) {

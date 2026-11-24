@@ -15,7 +15,7 @@ import { BusinessGallery } from '../../components/business-gallery';
   styleUrl: './business.css'
 })
 export class Business implements OnInit {
-  private readonly servicePrice = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' });
+  private readonly servicePrice = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 2 });
 
   readonly labels = computed(() => businessLabels(this.business()?.category));
   readonly mode = computed(() => attentionModes.find(item => item.value === this.business()?.attentionMode)?.label ?? '');

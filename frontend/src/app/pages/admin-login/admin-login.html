@@ -3,12 +3,12 @@
     <p class="eyebrow">ADMINISTRACIÓN</p>
     <h1 id="admin-login-title">Ingresa al panel</h1>
     <p class="login-description">Acceso con la cuenta de administración de Cronos.</p>
-    <form class="admin-login-form" (ngSubmit)="submit()">
+    <form class="admin-login-form" appValidateForm (validSubmit)="submit()">
       <label for="admin-username">Usuario</label>
-      <input id="admin-username" name="email" type="text" autocomplete="username" required maxlength="254" [(ngModel)]="email" [disabled]="loading()">
+      <input id="admin-username" name="email" type="text" autocomplete="username" required minlength="3" maxlength="254" [(ngModel)]="email" [disabled]="loading()">
       <label for="admin-password">Contraseña</label>
       <input id="admin-password" name="password" type="password" autocomplete="current-password" required maxlength="256" [(ngModel)]="password" [disabled]="loading()">
-      <button type="submit" [disabled]="loading() || !email.trim() || !password">{{ loading() ? 'Ingresando…' : 'Ingresar' }}</button>
+      <button type="submit" [disabled]="loading()">{{ loading() ? 'Ingresando…' : 'Ingresar' }}</button>
     </form>
     @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
     <p class="account-note"><a routerLink="/login">Volver al ingreso de clientes y profesionales</a></p>

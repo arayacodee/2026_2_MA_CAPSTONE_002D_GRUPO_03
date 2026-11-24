@@ -53,7 +53,7 @@
       @if (message()) {
         <p class="success" role="status">{{ message() }}</p>
       }
-      <form [formGroup]="form" (ngSubmit)="save()">
+      <form [formGroup]="form" appValidateForm #validation="appValidateForm" (validSubmit)="save()">
         <div class="name-grid">
           <label
             >Nombre<input
@@ -95,7 +95,7 @@
             {{ busy() ? 'Guardando…' : 'Guardar información personal' }}
           </button>
           @if (hasReturnUrl) {
-            <button type="button" [disabled]="busy()" (click)="save(true)">
+            <button type="button" [disabled]="busy()" (click)="validation.validate() && save(true)">
               Guardar y continuar
             </button>
           }

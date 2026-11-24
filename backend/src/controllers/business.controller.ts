@@ -11,14 +11,14 @@ import { bookingOwnerSelect, canReceiveBookings } from '../lib/subscriptions.js'
 
 const createBusinessSchema = z.object({
   ...businessProfileFields,
-  name: z.string().min(2).max(100),
+  name: z.string().trim().min(2).max(100),
   description: z.string().max(500).optional(),
 });
 
 const updateBusinessSchema = z
   .object({
     ...businessProfileFields,
-    name: z.string().min(2).max(100).optional(),
+    name: z.string().trim().min(2).max(100).optional(),
     description: z.string().max(500).nullable().optional(),
   })
   .refine(

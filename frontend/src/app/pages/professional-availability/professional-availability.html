@@ -49,7 +49,7 @@
 
       <form
         class="availability-form"
-        (ngSubmit)="createAvailability()"
+        appValidateForm #validation="appValidateForm" (validSubmit)="createAvailability(validation)"
       >
 
         <label>
@@ -84,7 +84,7 @@
 
             <input
               type="time"
-              name="endTime"
+              name="endTime" data-after="startTime"
               [(ngModel)]="newAvailability.endTime"
               required
             />
@@ -168,7 +168,7 @@
         <h2>Fechas bloqueadas</h2>
         <p>Las reservas existentes se mantienen. Los clientes no podrán pedir horas nuevas en estas fechas.</p>
       </div>
-      <form class="availability-form" (submit)="$event.preventDefault(); changeBlockedDay(day.value, reason.value)">
+      <form class="availability-form" appValidateForm (validSubmit)="changeBlockedDay(day.value, reason.value)">
         <label>Fecha <input #day type="date" required /></label>
         <label>Motivo opcional <input #reason maxlength="160" /></label>
         <button type="submit" class="primary-button" [disabled]="changingBlockedDay()">Bloquear fecha</button>

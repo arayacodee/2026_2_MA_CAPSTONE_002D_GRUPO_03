@@ -30,6 +30,9 @@ router.post('/webhook', async (req, res) => {
 });
 router.use(authenticate);
 router.post('/checkout', adminLoginLimit(), async (req, res) => {
+  if (req.body?.acceptedRecurring !== true) {
+    return void res.status(400).json({ error: 'Acepta el cobro automático mensual para continuar.', field: 'acceptedRecurring' });
+  }
   if (!paymentsConfigured()) return void res.status(503).json({ error: 'El pago todavía no está configurado.' });
   const user = req.authUser!;
   if (user.role === 'SUPERADMIN') return void res.sendStatus(403);

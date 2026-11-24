@@ -33,7 +33,9 @@ export class Booking implements OnInit {
   business = signal<Business | null>(null);
 
   selectedDate = signal('');
+  readonly dateError = signal('');
   selectedTime = signal('');
+  readonly timeError = signal('');
   availableTimes = signal<string[]>([]);
 
   loading = signal(true);
@@ -158,17 +160,18 @@ export class Booking implements OnInit {
 
     this.slotsRequest?.unsubscribe();
     this.loadingSlots.set(false);
-    this.selectedDate.set(
-      input.value
-    );
+    const invalid = input.validity.badInput || input.validity.rangeUnderflow;
+    this.dateError.set(invalid ? 'Elige la fecha de hoy o una posterior.' : '');
+    this.selectedDate.set(invalid ? '' : input.value);
 
     this.selectedTime.set('');
+    this.timeError.set('');
     this.availableTimes.set([]);
 
     this.errorMessage.set('');
     this.successMessage.set('');
 
-    if (input.value) {
+    if (this.selectedDate()) {
       this.loadAvailableSlots();
     }
   }
@@ -218,6 +221,7 @@ export class Booking implements OnInit {
 
   selectTime(time: string): void {
     this.selectedTime.set(time);
+    this.timeError.set('');
 
     this.errorMessage.set('');
     this.successMessage.set('');
@@ -279,12 +283,15 @@ export class Booking implements OnInit {
         },
 
         error: (error) => {
-          console.error(error);
-
-          this.errorMessage.set(
-            error?.error?.error ??
-              'No fue posible crear la reserva.'
-          );
+          const message = error?.error?.error ?? 'No fue posible crear la reserva.';
+          const field = error?.error?.field;
+          if (field === 'day' || field === 'time') {
+            this.selectedTime.set('');
+            if (field === 'day') this.dateError.set(message);
+            else this.timeError.set(message);
+          } else {
+            this.errorMessage.set(message);
+          }
 
           this.submitting.set(false);
 
@@ -303,7 +310,7 @@ export class Booking implements OnInit {
       {
         style: 'currency',
         currency: 'CLP',
-        maximumFractionDigits: 0
+        maximumFractionDigits: 2
       }
     ).format(Number(price));
   }

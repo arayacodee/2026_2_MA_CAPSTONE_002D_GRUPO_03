@@ -86,6 +86,8 @@
               <input
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
+                [attr.aria-invalid]="coverError() ? 'true' : null"
+                [attr.aria-describedby]="coverError() ? 'cover-error' : null"
                 [disabled]="imageBusy()"
                 (change)="onCoverSelected($event)"
               />
@@ -107,6 +109,7 @@
             }
           </div>
 
+          @if (coverError()) { <span id="cover-error" class="field-error" role="alert">{{ coverError() }}</span> }
           <small> JPEG, PNG o WebP. Máximo 5 MB. Recomendado: imagen horizontal. </small>
         </div>
       </section>
@@ -159,10 +162,13 @@
             <input
               type="file"
               accept="image/jpeg,image/png,image/webp"
+              [attr.aria-invalid]="avatarError() ? 'true' : null"
+              [attr.aria-describedby]="avatarError() ? 'avatar-error' : null"
               [disabled]="imageBusy()"
               (change)="onAvatarSelected($event)"
             />
           </label>
+          @if (avatarError()) { <span id="avatar-error" class="field-error" role="alert">{{ avatarError() }}</span> }
 
           @if (selectedAvatar()) {
             <button
@@ -184,7 +190,7 @@
       </section>
     </div>
 
-    <form class="profile-form" (ngSubmit)="saveProfile()">
+    <form class="profile-form" appValidateForm (validSubmit)="saveProfile()">
       <div class="editor-heading">
         <p class="eyebrow">INFORMACIÓN DEL NEGOCIO</p>
         <h3>Cómo te ven tus clientes</h3>

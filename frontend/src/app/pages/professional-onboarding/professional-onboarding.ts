@@ -1,3 +1,4 @@
+import { ValidateForm } from '../../core/forms/validate-form.directive';
 import {
   Component,
   OnInit,
@@ -18,6 +19,7 @@ import { BusinessProfileFields } from '../../components/business-profile-fields'
 @Component({
   selector: 'app-professional-onboarding',
   imports: [
+    ValidateForm,
     BusinessProfileFields,
     FormsModule
   ],

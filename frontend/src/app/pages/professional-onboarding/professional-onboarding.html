@@ -23,7 +23,7 @@
 
       <form
         class="profile-form"
-        (ngSubmit)="createProfile()"
+        appValidateForm (validSubmit)="createProfile()"
       >
 
         <label>
@@ -33,6 +33,7 @@
             type="text"
             name="name"
             [(ngModel)]="form.name"
+            minlength="2"
             maxlength="100"
             placeholder="Ej: Ink Studio"
             required

@@ -1,3 +1,4 @@
+import { ValidateForm } from '../../core/forms/validate-form.directive';
 import { Component, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -13,6 +14,7 @@ import {
 @Component({
   selector: 'app-professional-availability',
   imports: [
+    ValidateForm,
     FormsModule,
     RouterLink
   ],
@@ -142,7 +144,7 @@ export class ProfessionalAvailability implements OnInit {
       });
   }
 
-  createAvailability(): void {
+  createAvailability(validation?: ValidateForm): void {
     const business = this.business();
 
     if (!business) {
@@ -200,14 +202,12 @@ export class ProfessionalAvailability implements OnInit {
       },
 
       error: (error) => {
-        console.error(error);
-
-        this.errorMessage.set(
-          error?.error?.error ??
-            'No fue posible agregar la disponibilidad.'
-        );
-
         this.saving.set(false);
+        if (error.status === 409 && validation) {
+          validation.show('endTime', 'Elige un rango que no se cruce con otro horario del mismo día.');
+        } else {
+          this.errorMessage.set(error?.error?.error ?? 'No fue posible agregar la disponibilidad.');
+        }
       }
     });
   }

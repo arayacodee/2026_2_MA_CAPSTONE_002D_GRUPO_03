@@ -1,3 +1,5 @@
+import { ValidateForm } from '../../core/forms/validate-form.directive';
+import { imageError } from '../../core/forms/image-validation';
 import {
   Component,
   OnDestroy,
@@ -18,6 +20,7 @@ import { BusinessGallery } from '../../components/business-gallery';
 @Component({
   selector: 'app-professional-profile',
   imports: [
+    ValidateForm,
     BusinessProfileFields,
     BusinessGallery,
     FormsModule,
@@ -33,10 +36,12 @@ export class ProfessionalProfile implements OnInit, OnDestroy {
     // Estado temporal usado para seleccionar,
   // previsualizar y subir la foto de perfil.
   selectedAvatar = signal<File | null>(null);
+  readonly avatarError = signal('');
   avatarPreview = signal<string | null>(null);
   uploadingAvatar = signal(false);
 
   selectedCover = signal<File | null>(null);
+  readonly coverError = signal('');
   coverPreview = signal<string | null>(null);
   uploadingCover = signal(false);
 
@@ -101,35 +106,12 @@ export class ProfessionalProfile implements OnInit, OnDestroy {
         return;
       }
 
-      const allowedTypes = [
-        'image/jpeg',
-        'image/png',
-        'image/webp'
-      ];
-
-      if (!allowedTypes.includes(file.type)) {
-        this.errorMessage.set(
-          'Selecciona una imagen JPEG, PNG o WebP.'
-        );
-
-        input.value = '';
-        return;
-      }
-
-      if (file.size > 2 * 1024 * 1024) {
-        this.errorMessage.set(
-          'La foto de perfil no puede superar 2 MB.'
-        );
-
-        input.value = '';
-        return;
-      }
-
       this.errorMessage.set('');
       this.successMessage.set('');
-
       this.cancelAvatarSelection();
       input.value = '';
+      this.avatarError.set(imageError(file, 2));
+      if (this.avatarError()) return;
       this.selectedAvatar.set(file);
 
       // La previsualización es local y no sube nada todavía.
@@ -200,35 +182,12 @@ export class ProfessionalProfile implements OnInit, OnDestroy {
       return;
     }
 
-    const allowedTypes = [
-      'image/jpeg',
-      'image/png',
-      'image/webp'
-    ];
-
-    if (!allowedTypes.includes(file.type)) {
-      this.errorMessage.set(
-        'Selecciona una imagen JPEG, PNG o WebP.'
-      );
-
-      input.value = '';
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      this.errorMessage.set(
-        'La portada no puede superar 5 MB.'
-      );
-
-      input.value = '';
-      return;
-    }
-
     this.errorMessage.set('');
     this.successMessage.set('');
-
     this.cancelCoverSelection();
     input.value = '';
+    this.coverError.set(imageError(file, 5));
+    if (this.coverError()) return;
     this.selectedCover.set(file);
 
     // Creamos una URL temporal para mostrar la portada

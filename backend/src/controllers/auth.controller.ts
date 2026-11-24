@@ -10,6 +10,7 @@ import { prisma } from "../lib/prisma.js";
 import { env } from "../config/env.js";
 import { hashAdminPassword, verifyAdminPassword } from '../lib/admin-password.js';
 import { privateUserSelect } from '../lib/user-profile.js';
+import { contactFields } from '../lib/input-validation.js';
 
 import {
   createSessionToken,
@@ -35,7 +36,7 @@ const cookieOptions = {
 
 const credentialsSchema = z.object({ email: z.string().trim().toLowerCase().max(254).pipe(z.email()), password: z.string().min(1).max(256) }).strict();
 const dummyPasswordHash = hashAdminPassword('invalid-account-password');
-const registrationSchema = credentialsSchema.extend({ password: z.string().min(8).max(256), firstName: z.string().trim().min(2).max(80), lastName: z.string().trim().min(2).max(80), phone: z.string().trim().min(1).max(40), address: z.string().trim().min(5).max(300) }).strict();
+const registrationSchema = credentialsSchema.extend({ ...contactFields, password: z.string().min(8).max(256) }).strict();
 export const passwordLogin = async (req: Request, res: Response) => {
   if (req.headers?.origin && req.headers.origin !== env.CORS_ORIGIN) return res.status(403).json({ error: 'Origen no permitido.' });
   const parsed = credentialsSchema.safeParse(req.body);
@@ -50,7 +51,7 @@ export const passwordLogin = async (req: Request, res: Response) => {
 export const register = async (req: Request, res: Response) => {
   if (req.headers?.origin && req.headers.origin !== env.CORS_ORIGIN) return res.status(403).json({ error: 'Origen no permitido.' });
   const parsed = registrationSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: 'Completa todos los datos. La contraseña debe tener al menos 8 caracteres.' });
+  if (!parsed.success) return res.status(400).json({ error: 'Revisa los datos de registro y usa una contraseña de al menos 8 caracteres.' });
   const { password, ...contact } = parsed.data;
   if (await prisma.user.findFirst({ where: { email: { equals: contact.email, mode: 'insensitive' } } })) return res.status(409).json({ error: 'Ya existe una cuenta con ese correo. Inicia sesión o solicita al administrador que configure tu contraseña.' });
   try {

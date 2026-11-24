@@ -308,7 +308,7 @@ button:focus-visible,
 a:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
-.file-button:focus-within {
+.file-button:focus-within:not(:has(input[aria-invalid='true'])) {
   outline: 3px solid #0071e3;
   outline-offset: 3px;
 }

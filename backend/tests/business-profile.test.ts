@@ -24,7 +24,7 @@ test('rechaza categorías y modalidades inválidas y permite limpiar campos sin 
   prisma.business.findFirst = (async (query: any) => { assert.equal(query.where.ownerId, 'owner'); return { id: 'owned-business' }; }) as any;
   prisma.business.update = (async (query: any) => { args = query; return query.data; }) as any;
   try {
-    for (const body of [{ category: 'UNKNOWN' }, { attentionMode: 'INVALID' }, { specialties: 'x'.repeat(301) }]) {
+    for (const body of [{ name: '   ' }, { category: 'UNKNOWN' }, { attentionMode: 'INVALID' }, { specialties: 'x'.repeat(301) }]) {
       const res = response(); await updateMyBusiness({ authUser: { id: 'owner' }, body } as any, res as any); assert.equal(res.statusCode, 400);
     }
     assert.equal(args, undefined);

@@ -1,14 +1,11 @@
 import type { Request, Response } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
+import { serviceFields } from "../lib/input-validation.js";
 
 const createServiceSchema = z.object({
   businessId: z.string().uuid(),
-  name: z.string().min(2).max(100),
-  description: z.string().max(500).optional(),
-  durationMin: z.number().int().positive(),
-  price: z.number().nonnegative(),
-  isActive: z.boolean().optional(),
+  ...serviceFields,
 });
 
 export const createService = async (
@@ -138,13 +135,7 @@ export const getServiceById = async (
 
 
 const updateServiceSchema = z
-  .object({
-    name: z.string().min(2).max(100).optional(),
-    description: z.string().max(500).nullable().optional(),
-    durationMin: z.number().int().positive().optional(),
-    price: z.number().nonnegative().optional(),
-    isActive: z.boolean().optional(),
-  })
+  .object(serviceFields).partial()
   .refine((data) => Object.keys(data).length > 0, {
     message: "At least one field is required",
   });

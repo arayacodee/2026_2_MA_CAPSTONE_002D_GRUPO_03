@@ -7,6 +7,13 @@ const allowedMimeTypes = [
   "image/webp",
 ];
 
+function matchesImageType(file: Express.Multer.File): boolean {
+  const { buffer, mimetype } = file;
+  if (mimetype === "image/jpeg") return buffer.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff]));
+  if (mimetype === "image/png") return buffer.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+  return buffer.length >= 12 && buffer.toString("ascii", 0, 4) === "RIFF" && buffer.toString("ascii", 8, 12) === "WEBP";
+}
+
 const imageUpload = multer({
   storage: multer.memoryStorage(),
 
@@ -18,7 +25,7 @@ const imageUpload = multer({
     if (!allowedMimeTypes.includes(file.mimetype)) {
       callback(
         new Error(
-          "Only JPEG, PNG and WebP images are allowed"
+          "Elige una imagen JPEG, PNG o WebP."
         )
       );
 
@@ -41,6 +48,10 @@ export const uploadBusinessImage: RequestHandler = (
     res,
     (error) => {
       if (!error) {
+        if (req.file && !matchesImageType(req.file)) {
+          res.status(400).json({ error: "El archivo debe ser una imagen JPEG, PNG o WebP válida." });
+          return;
+        }
         next();
         return;
       }
@@ -50,7 +61,7 @@ export const uploadBusinessImage: RequestHandler = (
         error.code === "LIMIT_FILE_SIZE"
       ) {
         res.status(413).json({
-          error: "Image must not exceed 5 MB",
+          error: "La imagen debe pesar como máximo 5 MB.",
         });
 
         return;
@@ -60,7 +71,7 @@ export const uploadBusinessImage: RequestHandler = (
         error:
           error instanceof Error
             ? error.message
-            : "Invalid image",
+            : "Elige una imagen válida.",
       });
     }
   );

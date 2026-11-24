@@ -199,9 +199,9 @@
               (click)="editingReservation.set(editingReservation() === reservation.id ? null : reservation.id)">Reprogramar</button>
           </article>
           @if (editingReservation() === reservation.id) {
-            <form class="reservation-card reschedule-form" (submit)="reprogram($event, reservation.id, day.value, time.value)">
-              <label>Fecha <input #day type="date" required /></label>
-              <label>Hora del negocio <input #time type="time" required /></label>
+            <form class="reservation-card reschedule-form" appValidateForm #validation="appValidateForm" (validSubmit)="reprogram(reservation.id, day.value, time.value, validation)">
+              <label>Fecha <input #day name="day" type="date" required /></label>
+              <label>Hora del negocio <input #time name="time" type="time" required /></label>
               <button type="submit" class="complete-button" [disabled]="changingReservation()">Guardar horario</button>
             </form>
           }

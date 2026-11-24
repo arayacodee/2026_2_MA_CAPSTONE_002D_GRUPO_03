@@ -25,6 +25,7 @@ export class ProfessionalHistory implements OnInit {
   readonly nextCursor = signal<string | null>(null);
   readonly page = signal(0);
   readonly month = signal('');
+  readonly monthError = signal('');
   readonly pageSize = 10;
   private cursors: (string | undefined)[] = [undefined];
   private request?: Subscription;
@@ -55,6 +56,11 @@ export class ProfessionalHistory implements OnInit {
   }
 
   selectMonth(month: string) {
+    if (month && !/^[1-9]\d{3}-(0[1-9]|1[0-2])$/.test(month)) {
+      this.monthError.set('Elige un mes con un año de cuatro cifras, por ejemplo 2026-11.');
+      return;
+    }
+    this.monthError.set('');
     if (month === this.month()) return;
 
     this.request?.unsubscribe();

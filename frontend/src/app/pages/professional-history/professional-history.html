@@ -7,9 +7,11 @@
     <div class="month-controls">
       <input #monthPicker id="history-month" type="month" min="1000-01" max="9999-12"
         placeholder="AAAA-MM" pattern="[1-9][0-9]{3}-(0[1-9]|1[0-2])"
-        [value]="month()" (change)="monthPicker.reportValidity() && selectMonth(monthPicker.value)" />
-      <button type="button" [disabled]="!month()" (click)="monthPicker.focus(); selectMonth('')">Quitar filtro</button>
+        [value]="month()" [attr.aria-invalid]="monthError() ? 'true' : null"
+        [attr.aria-describedby]="monthError() ? 'history-month-error' : null" (change)="selectMonth(monthPicker.value)" />
+      <button type="button" [disabled]="!month() && !monthError()" (click)="monthPicker.value = ''; monthPicker.focus(); selectMonth('')">Quitar filtro</button>
     </div>
+    @if (monthError()) { <p class="field-error" id="history-month-error" role="alert">{{ monthError() }}</p> }
   </div>
   <app-attention-metrics [month]="month()" />
   @if (error()) { <div class="error" role="alert">{{ error() }} <button type="button" (click)="load()" [disabled]="loading()">Reintentar</button></div> }

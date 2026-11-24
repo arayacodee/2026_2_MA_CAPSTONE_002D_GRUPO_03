@@ -1,3 +1,4 @@
+import { ValidateForm } from '../../core/forms/validate-form.directive';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -6,7 +7,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { ProfessionalProfile } from '../professional-profile/professional-profile';
 
-@Component({ selector: 'app-account-profile', imports: [ReactiveFormsModule, RouterLink, ProfessionalProfile], templateUrl: './account-profile.html', styleUrl: './account-profile.css' })
+@Component({ selector: 'app-account-profile', imports: [ValidateForm, ReactiveFormsModule, RouterLink, ProfessionalProfile], templateUrl: './account-profile.html', styleUrl: './account-profile.css' })
 export class AccountProfile {
   readonly auth = inject(AuthService);
   private readonly router = inject(Router);
