@@ -15,6 +15,24 @@ describe('Home', () => {
     expect(fixture.componentInstance).toBeTruthy();
   });
 
+  it('filtra los rubros nuevos y permite volver a todos', () => {
+    TestBed.overrideProvider(ApiService, { useValue: { getBusinesses: () => of([
+      { id: 'auto', name: 'Taller', category: 'AUTOMOTIVE' },
+      { id: 'pet', name: 'Peluquería canina', category: 'PETS' },
+    ]) } });
+    const fixture = TestBed.createComponent(Home);
+    fixture.detectChanges();
+    const page: HTMLElement = fixture.nativeElement;
+    const filter = [...page.querySelectorAll<HTMLButtonElement>('.category-filters button')].find(button => button.textContent?.trim() === 'Mascotas')!;
+    filter.click();
+    fixture.detectChanges();
+    expect(page.querySelectorAll('.business-card').length).toBe(1);
+    expect(page.querySelector('.business-card h3')?.textContent?.trim()).toBe('Peluquería canina');
+    page.querySelector<HTMLButtonElement>('.category-filters button')!.click();
+    fixture.detectChanges();
+    expect(page.querySelectorAll('.business-card').length).toBe(2);
+  });
+
   it('muestra una portada decorativa sin foto y conserva la foto del siguiente negocio', () => {
     TestBed.overrideProvider(ApiService, { useValue: {
       getBusinesses: () => of([

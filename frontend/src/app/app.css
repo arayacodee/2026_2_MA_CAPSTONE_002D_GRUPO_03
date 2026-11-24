@@ -260,6 +260,7 @@
 
 .footer-bottom {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
@@ -267,6 +268,15 @@
   border-top: 1px solid var(--footer-line);
   color: var(--footer-muted);
   font-size: 13px;
+}
+
+@media (max-width: 480px) {
+  .nav-links { flex-basis: 100%; justify-content: flex-start; }
+  .nav-links > a, .logout-button { min-height: 44px; display: inline-flex; align-items: center; }
+  .account { min-width: 0; flex-wrap: wrap; }
+  .footer-professional { padding: 20px; }
+  .site-footer .footer-columns { grid-template-columns: minmax(0, 1fr); }
+  .company-link { max-width: 100%; overflow-wrap: anywhere; }
 }
 
 @media (max-width: 720px) {

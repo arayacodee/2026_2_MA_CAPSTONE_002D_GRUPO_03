@@ -1,4 +1,6 @@
 import { prisma } from './prisma.js';
+import { queueSubscriptionPaymentMail } from './notifications.js';
+import { mailEnabled } from './mail-config.js';
 import { mpRequest, validPlan, invoicePeriodEnd, type MPSubscription, type MPInvoice } from './mercado-pago.js';
 import type { Prisma } from '../generated/prisma/client.js';
 
@@ -61,10 +63,12 @@ export async function syncSubscription(providerId: string) {
     } });
     if (!updated.count) throw new Error('Concurrent subscription update; retry reconciliation');
     for (const { invoice, end } of verified) {
+      const previous = mailEnabled() ? await tx.subscriptionPayment.findUnique({ where: { id: String(invoice.id) } }) : null;
       await tx.subscriptionPayment.upsert({ where: { id: String(invoice.id) },
         create: { id: String(invoice.id), subscriptionId: local.id, status: invoice.payment?.status ?? 'pending', paidUntil: end },
         update: { status: invoice.payment?.status ?? 'pending', paidUntil: end },
       });
+      if (end && previous?.status !== 'approved') await queueSubscriptionPaymentMail(tx, String(invoice.id), local.userId, local.businessName, end);
     }
     if (paidUntil && paidUntil > new Date()) {
       const user = await tx.user.findUniqueOrThrow({ where: { id: local.userId } });

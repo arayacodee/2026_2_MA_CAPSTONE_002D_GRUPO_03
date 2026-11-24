@@ -7,6 +7,21 @@ Object.assign(process.env, {
 const { prisma } = await import('../src/lib/prisma.js');
 const { createBusiness, updateMyBusiness } = await import('../src/controllers/business.controller.js');
 function response() { return { statusCode: 200, body: undefined as any, status(code: number) { this.statusCode = code; return this; }, json(data: any) { this.body = data; return this; } }; }
+
+test('permite crear negocios en los seis rubros nuevos', async () => {
+  const originals = { findFirst: prisma.business.findFirst, create: prisma.business.create };
+  prisma.business.findFirst = (async () => null) as any;
+  prisma.business.create = (async ({ data }: any) => data) as any;
+  try {
+    for (const category of ['AUTOMOTIVE', 'PETS', 'EDUCATION', 'FITNESS', 'TECHNICAL', 'HOME']) {
+      const res = response();
+      await createBusiness({ authUser: { id: 'owner' }, body: { name: 'Nuevo negocio', category } } as any, res as any);
+      assert.equal(res.statusCode, 201);
+      assert.equal(res.body.category, category);
+      assert.equal(res.body.ownerId, 'owner');
+    }
+  } finally { Object.assign(prisma.business, originals); }
+});
 test('crea un perfil de terapias con datos públicos y deriva el propietario de la sesión', async () => {
   const originals = { findFirst: prisma.business.findFirst, create: prisma.business.create };
   let saved: any;

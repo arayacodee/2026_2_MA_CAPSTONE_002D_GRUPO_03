@@ -1,3 +1,4 @@
+import { BusinessCategory } from '../../models/business-category';
 import { environment } from '../../../environments/environment';
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
@@ -51,8 +52,8 @@ export class ApiService {
   updateContact(data: { firstName: string; lastName: string; phone: string; address: string }) { return this.http.patch<AuthResponse>(`${this.baseUrl}/api/account/profile`, data); }
   sendPhoneCode() { return this.http.post<{ message: string }>(`${this.baseUrl}/api/account/phone/send`, {}); }
   checkPhoneCode(code: string) { return this.http.post<AuthResponse>(`${this.baseUrl}/api/account/phone/check`, { code }); }
-  professionalApplication() { return this.http.get<{ application: { businessName: string; category: 'GENERAL' | 'WELLNESS' | 'BEAUTY'; description: string | null } | null }>(`${this.baseUrl}/api/account/professional-application`); }
-  saveProfessionalApplication(data: { businessName: string; category: 'GENERAL' | 'WELLNESS' | 'BEAUTY'; description: string }) { return this.http.put(`${this.baseUrl}/api/account/professional-application`, data); }
+  professionalApplication() { return this.http.get<{ application: { businessName: string; category: BusinessCategory; description: string | null } | null }>(`${this.baseUrl}/api/account/professional-application`); }
+  saveProfessionalApplication(data: { businessName: string; category: BusinessCategory; description: string }) { return this.http.put(`${this.baseUrl}/api/account/professional-application`, data); }
   adminLogin(email: string, password: string): Observable<AuthResponse> {
     return this.http.post<AuthResponse>(`${this.baseUrl}/api/auth/admin`, { email, password });
   }

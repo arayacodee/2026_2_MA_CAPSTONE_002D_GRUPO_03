@@ -22,6 +22,7 @@ export class Home implements OnInit {
 
   readonly categories = businessCategories;
   readonly category = signal<BusinessCategory | ''>('');
+  readonly previewBusinessId = signal<string | null>(null);
   readonly filteredBusinesses = computed(() => this.businesses().filter(business => !this.category() || (business.category ?? 'GENERAL') === this.category()));
   readonly businessLabels = businessLabels;
   businesses = signal<Business[]>([]);

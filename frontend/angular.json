@@ -54,7 +54,7 @@
         "serve": {
           "builder": "@angular/build:dev-server",
           "options": {
-            "allowedHosts": ["votes-context-arcade-controlled.trycloudflare.com"],
+            "allowedHosts": ["browser-luck-alliance-finish.trycloudflare.com"],
             "proxyConfig": "proxy.conf.json"
           },
           "configurations": {

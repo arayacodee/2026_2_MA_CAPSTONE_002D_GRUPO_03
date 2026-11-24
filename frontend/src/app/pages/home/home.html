@@ -317,8 +317,12 @@
         business of filteredBusinesses();
         track business.id
       ) {
-        <a
+        <article
           class="business-card"
+          [class.preview-open]="previewBusinessId() === business.id"
+          (keydown.escape)="previewBusinessId.set(null)"
+        >
+        <a class="business-link"
           [routerLink]="[
             '/business',
             business.id
@@ -343,6 +347,22 @@
             </div>
           }
 
+          <div class="business-preview" [id]="'business-preview-' + business.id">
+            @if (business.coverUrl) {
+              <img class="business-preview-cover" [src]="business.coverUrl" alt="" loading="lazy" />
+            }
+            <div class="business-preview-copy">
+              <span class="business-preview-label">Vista previa</span>
+              <strong>{{ business.name }}</strong>
+              @if (business.description) { <p>{{ business.description }}</p> }
+              @if (business.professionalName) { <span>{{ business.professionalName }}</span> }
+              @if (business.specialties) { <span>{{ business.specialties }}</span> }
+              @if (business.address) { <span>{{ business.address }}</span> }
+              @if (business.attentionMode) {
+                <span>{{ business.attentionMode === 'ONLINE' ? 'En línea' : business.attentionMode === 'BOTH' ? 'Presencial y en línea' : 'Presencial' }}</span>
+              }
+            </div>
+          </div>
         </div>
 
           <div class="business-information">
@@ -368,6 +388,14 @@
           </div>
 
         </a>
+        <button type="button" class="business-preview-toggle"
+          [attr.aria-expanded]="previewBusinessId() === business.id"
+          [attr.aria-controls]="'business-preview-' + business.id"
+          [attr.aria-label]="(previewBusinessId() === business.id ? 'Cerrar vista previa de ' : 'Mostrar vista previa de ') + business.name"
+          (click)="previewBusinessId.set(previewBusinessId() === business.id ? null : business.id)">
+          {{ previewBusinessId() === business.id ? 'Cerrar ×' : 'Vista previa +' }}
+        </button>
+        </article>
       } @empty { @if (!loading() && !errorMessage()) { <p>No hay negocios en esta categoría todavía.</p> } }
 
     </div>

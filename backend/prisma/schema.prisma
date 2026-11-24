@@ -17,6 +17,12 @@ enum BusinessCategory {
   GENERAL
   WELLNESS
   BEAUTY
+  AUTOMOTIVE
+  PETS
+  EDUCATION
+  FITNESS
+  TECHNICAL
+  HOME
 }
 
 enum AttentionMode {
@@ -263,6 +269,23 @@ model ClientSession {
   @@index([businessId, clientId])
   @@index([occurredAt])
   @@index([businessId, occurredAt])
+}
+
+model MailNotification {
+  id String @id @default(uuid())
+  eventKey String @unique
+  recipient String
+  subject String
+  html String
+  attempts Int @default(0)
+  nextAttemptAt DateTime @default(now())
+  lockedUntil DateTime?
+  lockToken String?
+  acceptedAt DateTime?
+  previewedAt DateTime?
+  lastError String?
+  createdAt DateTime @default(now())
+  @@index([acceptedAt, nextAttemptAt])
 }
 
 model SessionEvidence {

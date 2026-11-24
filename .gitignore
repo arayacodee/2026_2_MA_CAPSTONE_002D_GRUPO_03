@@ -32,3 +32,10 @@ AGENTS.md
 # Archivos de trabajo locales
 entregables/
 completar_*.py
+
+# Autorización local de Outlook y vistas previas de correos
+backend/.outlook/
+
+# Borradores, diagnósticos y artefactos generados locales
+/tmp/
+/outputs/

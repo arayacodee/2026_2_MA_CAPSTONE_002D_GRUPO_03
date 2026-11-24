@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { z } from "zod";
+import { queueReservationMail } from '../lib/notifications.js';
 import { isTransactionConflict, prisma } from "../lib/prisma.js";
 import { bookingOwnerSelect, canReceiveBookings } from '../lib/subscriptions.js';
 import type { Prisma } from '../generated/prisma/client.js';
@@ -137,13 +138,15 @@ export const createReservation = async (req: Request, res: Response) => {
         throw new ReservationConflict('Este servicio no está recibiendo reservas.');
       }
       const endsAt = await checkSlot(tx, service.business, startsAt, service.durationMin);
-      return tx.reservation.create({
+      const created = await tx.reservation.create({
         data: {
           businessId: service.businessId, serviceId: service.id, clientId: req.authUser!.id, startsAt, endsAt,
           bookedServiceName: service.name, bookedDurationMin: service.durationMin, bookedPrice: service.price,
         },
         include: reservationInclude,
       });
+      await queueReservationMail(tx, created.id);
+      return created;
     });
     if (!reservation) return res.status(404).json({ error: 'Servicio no encontrado.' });
     return res.status(201).json(reservation);
@@ -188,6 +191,7 @@ export const rescheduleReservation = async (req: Request<{ id: string }>, res: R
         },
         include: reservationInclude,
       });
+
     });
     if (!changed) return res.status(404).json({ error: 'Reserva no encontrada.' });
     return res.json(changed);

@@ -1,9 +1,15 @@
-export type BusinessCategory = 'GENERAL' | 'WELLNESS' | 'BEAUTY';
+export type BusinessCategory = 'GENERAL' | 'WELLNESS' | 'BEAUTY' | 'AUTOMOTIVE' | 'PETS' | 'EDUCATION' | 'FITNESS' | 'TECHNICAL' | 'HOME';
 export type AttentionMode = 'ONSITE' | 'ONLINE' | 'BOTH';
 export const businessCategories: { value: BusinessCategory; label: string }[] = [
   { value: 'GENERAL', label: 'Servicios generales' },
   { value: 'WELLNESS', label: 'Bienestar y terapias' },
-  { value: 'BEAUTY', label: 'Belleza y cuidado personal' }
+  { value: 'BEAUTY', label: 'Belleza y cuidado personal' },
+  { value: 'AUTOMOTIVE', label: 'Automotriz' },
+  { value: 'PETS', label: 'Mascotas' },
+  { value: 'EDUCATION', label: 'Clases y asesorías' },
+  { value: 'FITNESS', label: 'Deporte y entrenamiento' },
+  { value: 'TECHNICAL', label: 'Servicio técnico' },
+  { value: 'HOME', label: 'Hogar y mantenimiento' }
 ];
 export const attentionModes = [{ value: 'ONSITE', label: 'Presencial' }, { value: 'ONLINE', label: 'En línea' }, { value: 'BOTH', label: 'Presencial y en línea' }] as const;
 export function businessLabels(category?: string) {

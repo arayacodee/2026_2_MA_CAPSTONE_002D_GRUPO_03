@@ -1,4 +1,5 @@
 import type { Prisma } from "../generated/prisma/client.js";
+import { queueReservationMail } from './notifications.js';
 
 export class ReservationConflict extends Error {}
 
@@ -37,5 +38,6 @@ export async function completeSafely(tx: Prisma.TransactionClient, id: string, n
       amount: reservation.bookedPrice ?? null,
     },
   });
+  await queueReservationMail(tx, id, true);
   return { reservation, session };
 }

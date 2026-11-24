@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import { businessCategorySchema } from '../lib/business-profile.js';
 import { prisma } from '../lib/prisma.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { privateUserSelect } from '../lib/user-profile.js';
@@ -69,7 +70,7 @@ router.get('/professional-application', async (req, res) => {
   res.json({ application: await prisma.professionalApplication.findUnique({ where: { userId: req.authUser!.id } }) });
 });
 router.put('/professional-application', async (req, res) => {
-  const parsed = z.object({ businessName: z.string().trim().min(2).max(100), category: z.enum(['GENERAL', 'WELLNESS', 'BEAUTY']), description: z.string().trim().max(500).nullable().optional() }).strict().safeParse(req.body);
+  const parsed = z.object({ businessName: z.string().trim().min(2).max(100), category: businessCategorySchema, description: z.string().trim().max(500).nullable().optional() }).strict().safeParse(req.body);
   if (!parsed.success) return void res.status(400).json({ error: 'Revisa el nombre y la categoría de tu empresa.' });
   // This is a saved draft, never a payment or a role elevation.
   const application = await prisma.professionalApplication.upsert({ where: { userId: req.authUser!.id }, create: { userId: req.authUser!.id, ...parsed.data }, update: parsed.data });
